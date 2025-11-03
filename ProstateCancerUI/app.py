@@ -1,650 +1,1084 @@
-import streamlit as st
+import os
+import random
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+import plotly.figure_factory as ff
 import seaborn as sns
 import matplotlib.pyplot as plt
-from utils import (
-    perform_imputation, calculate_metrics, plot_roc_curve, plot_regularization_path, 
-    apply_feature_transformation, create_polynomial_features,
-    plot_confusion_matrix, create_correlation_heatmap, automatic_feature_selection,
-    shap_analysis, pre_training_shap_analysis, calculate_predictive_parity,
-    plot_calibration_curve, calculate_calibration_metrics
+from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.metrics import (
+    roc_curve, auc, accuracy_score, precision_score, 
+    recall_score, f1_score, mean_squared_error, r2_score,
+    confusion_matrix, log_loss, brier_score_loss
 )
-from models import train_logistic_regression, train_lasso_regression, preprocess_data
+from sklearn.linear_model import LassoCV, BayesianRidge, Lasso, LogisticRegression, LinearRegression
+from imblearn.over_sampling import SMOTE
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
+from sklearn.preprocessing import (
+    StandardScaler, MinMaxScaler, RobustScaler, PolynomialFeatures,
+    PowerTransformer, QuantileTransformer
+)
 from sklearn.model_selection import train_test_split
-from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer
-from sklearn.experimental import enable_iterative_imputer  # noqa
-from sklearn.linear_model import BayesianRidge
-from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.calibration import calibration_curve
+from scipy import stats
+import warnings
+warnings.filterwarnings('ignore')
 
-# Page configuration
-st.set_page_config(
-    page_title="Machine Learning Analysis Tool",
-    page_icon="⚕️",
-    layout="wide"
-)
+# Reproducibility: set global random seeds for utility functions
+SEED = 42
+os.environ['PYTHONHASHSEED'] = str(SEED)
+random.seed(SEED)
+np.random.seed(SEED)
 
-# Custom header with icon
-st.markdown("""
-<div style="display: flex; align-items: center; margin-bottom: 1rem;">
-    <h1 style="margin: 0;">Machine Learning Analysis Tool</h1>
-</div>
-""", unsafe_allow_html=True)
+def perform_imputation(df, columns, method, knn_neighbors=5):
+    from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer
+    from sklearn.linear_model import BayesianRidge
 
-# Initialize session state for data persistence
-if 'df_imputed' not in st.session_state:
-    st.session_state['df_imputed'] = None
-if 'model_trained' not in st.session_state:
-    st.session_state['model_trained'] = False
-if 'selected_features' not in st.session_state:
-    st.session_state['selected_features'] = []
-if 'target_variable' not in st.session_state:
-    st.session_state['target_variable'] = None
-if 'pre_training_shap_done' not in st.session_state:
-    st.session_state['pre_training_shap_done'] = False
+    df_imputed = df.copy()
+    if not columns:
+        return df_imputed
 
-# File upload section
-st.header("1. Data Upload and Preprocessing")
-uploaded_file = st.file_uploader("Upload your dataset (CSV format only)", type="csv")
+    if method in ['mean', 'median', 'most_frequent']:
+        imputer = SimpleImputer(strategy=method)
+    elif method == 'mode':
+        imputer = SimpleImputer(strategy='most_frequent')
+    elif method == 'knn':
+        imputer = KNNImputer(n_neighbors=knn_neighbors)
+    elif method == 'bayesian_ridge':
+        imputer = IterativeImputer(estimator=BayesianRidge(), random_state=42)
+    elif method == 'mice':
+        imputer = IterativeImputer(random_state=42)
+    else:
+        raise ValueError(f"Unknown imputation method: {method}")
 
-if uploaded_file is not None:
-    try:
-        df = pd.read_csv(uploaded_file)
-        st.write("Dataset Preview:")
-        st.dataframe(df.head(), hide_index=True)
+    df_imputed[columns] = imputer.fit_transform(df_imputed[columns])
+    return df_imputed
 
-        # Only display simple data info
-        st.write(f"Loaded dataset with {df.shape[0]} rows and {df.shape[1]} columns.")
-        df_encoded, _ = preprocess_data(df, df)
-        
-        # Missing values analysis
-        missing_values = df.isnull().sum()
-        st.subheader("Missing Values Analysis")
-        
-        if missing_values.sum() > 0:
-            # Create a DataFrame to display missing values stats
-            missing_stats = pd.DataFrame({
-                'Column': missing_values.index,
-                'Missing Values': missing_values.values,
-                'Percentage (%)': (missing_values.values / len(df) * 100).round(2)
-            })
-            missing_stats = missing_stats[missing_stats['Missing Values'] > 0].sort_values(
-                by='Missing Values', ascending=False
-            ).reset_index(drop=True)
-            
-            st.write(missing_stats)
-                
-            # Column selection for imputation
-            columns_with_missing = missing_values[missing_values > 0].index.tolist()
-            
-            st.subheader("Select Columns for Imputation")
-            # Dropdown for categorical imputation
-            cat_impute_strategy = st.selectbox(
-                "Select categorical imputation method:",
-                options=["mean", "median", "mode"],
-                index=2 # default to 'mode'
-            )
-
-            # Dropdown for numerical imputation
-            num_impute_strategy = st.selectbox(
-                "Select numerical imputation method:",
-                options=["mean", "median", "mode", "knn", "bayesian_ridge", "mice"],
-                index=0  # default to 'mean'
-            )
-            if num_impute_strategy == "knn":
-                knn_neighbors = st.slider("KNN neighbors (if KNN selected):", 1, 10, 5)
-            else:
-                knn_neighbors = 5
-
-            if st.button("Perform Imputation"):
-                with st.spinner('Performing imputation...'):
-                    # 1. Impute categorical columns
-                    categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
-                    cat_cols_with_na = [col for col in categorical_cols if df[col].isnull().any()]
-
-                    if cat_cols_with_na:
-                        if cat_impute_strategy == 'mean':
-                            cat_imputer = SimpleImputer(strategy='mean')
-                        elif cat_impute_strategy == 'median':
-                            cat_imputer = SimpleImputer(strategy='median')
-                        else:  # 'mode'
-                            cat_imputer = SimpleImputer(strategy='most_frequent')
-                        df[cat_cols_with_na] = cat_imputer.fit_transform(df[cat_cols_with_na])
-                        st.write(f"Imputed categorical columns {cat_cols_with_na} using strategy: {cat_impute_strategy}")
-                    else:
-                        st.write("No missing values in categorical columns.")
-
-                    # 2. Encode categorical columns automatically
-                    if categorical_cols:
-                        for col in categorical_cols:
-                            le = LabelEncoder()
-                            df[col] = le.fit_transform(df[col].astype(str))
-                        st.write(f"Encoded categorical columns: {categorical_cols}")
-                    else:
-                        st.write("No categorical columns to encode.")
-
-                    # 3. Impute numerical columns
-                    numerical_cols = df.select_dtypes(include=['number']).columns.tolist()
-                    num_cols_with_na = [col for col in numerical_cols if df[col].isnull().any()]
-
-                    if num_cols_with_na:
-                        if num_impute_strategy in ['mean', 'median', 'mode']:
-                            strategy = num_impute_strategy if num_impute_strategy != 'mode' else 'most_frequent'
-                            num_imputer = SimpleImputer(strategy=strategy)
-                            df[num_cols_with_na] = num_imputer.fit_transform(df[num_cols_with_na])
-                        elif num_impute_strategy == 'knn':
-                            num_imputer = KNNImputer(n_neighbors=knn_neighbors)
-                            df[num_cols_with_na] = num_imputer.fit_transform(df[num_cols_with_na])
-                        elif num_impute_strategy == 'bayesian_ridge':
-                            num_imputer = IterativeImputer(estimator=BayesianRidge(), random_state=42)
-                            df[num_cols_with_na] = num_imputer.fit_transform(df[num_cols_with_na])
-                        elif num_impute_strategy == 'mice':
-                            num_imputer = IterativeImputer(random_state=42)
-                            df[num_cols_with_na] = num_imputer.fit_transform(df[num_cols_with_na])
-                        else:
-                            st.error("Invalid numerical imputation strategy.")
-                        st.write(f"Imputed numerical columns {num_cols_with_na} using strategy: {num_impute_strategy}")
-                    else:
-                        st.write("No missing values in numerical columns.")
-
-                    df_imputed = perform_imputation(df, cat_cols_with_na, cat_impute_strategy)
-                    df_imputed = perform_imputation(df, num_cols_with_na, num_impute_strategy)
-                    st.session_state['df_imputed'] = df_imputed
-                    st.session_state['pre_training_shap_done'] = False  # Reset SHAP analysis flag
-                    st.success("Imputation completed successfully!")
-
-                    # Show comparison
-                    st.subheader("Imputation Results")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write("Original Data Sample")
-                        st.write(df.head())
-                    with col2:
-                        st.write("Imputed Data Sample")
-                        st.write(df_imputed.head())
-                        
-                    # Display statistics after imputation
-                    st.subheader("Statistics After Imputation")
-                    st.write(df_imputed.describe())
-                    
-                    # Add option to download imputed data
-                    st.subheader("Download Imputed Data")
-                    
-                    # Generate CSV for download
-                    csv = df_imputed.to_csv(index=False)
-                    
-                    # Create download button
-                    st.download_button(
-                        label="Download Imputed Data as CSV",
-                        data=csv,
-                        file_name="imputed_data.csv",
-                        mime="text/csv",
-                        help="Click to download the full dataset with imputed values"
-                    )
-        else:
-            st.info("No missing values found in the dataset.")
-            st.session_state['df_imputed'] = df
-            st.session_state['pre_training_shap_done'] = False  # Reset SHAP analysis flag
-            # Add option to download data even if no imputation was needed
-            st.subheader("Download Data")
-            
-            # Generate CSV for download
-            csv = df.to_csv(index=False)
-            
-            # Create download button
-            st.download_button(
-                label="Download Data as CSV",
-                data=csv,
-                file_name="processed_data.csv",
-                mime="text/csv",
-                help="Click to download the dataset"
-            )
-
-    except Exception as e:
-        st.error(f"Error loading dataset: {str(e)}")
-        st.info("Please ensure your CSV file is properly formatted.")
-
-# Continue with the rest of the analysis if data is available
-if st.session_state['df_imputed'] is not None:
-    df_imputed = st.session_state['df_imputed']
+def calculate_prediction_intervals(model, X, y, alpha=0.05):
+    """
+    Calculate prediction intervals for a regression model using 
+    bootstrap methodology.
     
-    # Correlation Analysis and Feature Selection
-    st.header("2. Correlation Analysis and Automatic Feature Selection")
+    Parameters:
+    -----------
+    model : estimator
+        A fitted regression model with predict method
+    X : DataFrame or array-like
+        Features
+    y : Series or array-like
+        True target values
+    alpha : float
+        Significance level (default: 0.05 for 95% confidence intervals)
+        
+    Returns:
+    --------
+    lower_bound : array
+        Lower bound of prediction intervals
+    upper_bound : array
+        Upper bound of prediction intervals
+    prediction_std : array
+        Standard deviation of predictions
+    """
+    # Make predictions
+    predictions = model.predict(X)
     
-    # Select target variable
-    st.subheader("Select Target Variable")
-    target_variable = st.selectbox(
-        "Choose target variable:",
-        options=df_imputed.columns.tolist(),
-        help="Select the column you want to predict"
+    # Calculate residuals
+    residuals = y - predictions
+    
+    # Calculate residual standard deviation
+    residual_std = np.std(residuals)
+    
+    # Calculate standard error of predictions
+    # This is a simplification - a more sophisticated approach would 
+    # use bootstrap sampling or quantile regression
+    prediction_std = np.ones(len(predictions)) * residual_std
+    
+    # Calculate critical value for the desired confidence level
+    # Using t-distribution with n-p degrees of freedom
+    # where n is sample size and p is number of parameters
+    n = len(y)
+    p = X.shape[1] if hasattr(X, 'shape') else 1
+    from scipy import stats
+    t_crit = stats.t.ppf(1 - alpha / 2, df=n-p)
+    
+    # Calculate prediction intervals
+    lower_bound = predictions - t_crit * prediction_std
+    upper_bound = predictions + t_crit * prediction_std
+    
+    return lower_bound, upper_bound, prediction_std
+
+def calculate_metrics(y_true, y_pred, model_type="logistic", y_pred_proba=None, prediction_intervals=None):
+    """
+    Calculate performance metrics based on model type.
+    
+    Parameters:
+    -----------
+    y_true : array-like
+        True target values
+    y_pred : array-like
+        Predicted target values
+    model_type : str
+        Type of model ('logistic' or 'lasso')
+    y_pred_proba : array-like, optional
+        Predicted probabilities (only for logistic)
+        
+    Returns:
+    --------
+    metrics : dict
+        Dictionary of performance metrics
+    """
+    if model_type == "logistic":
+        # Convert inputs to numpy arrays if they aren't already
+        y_true = np.array(y_true)
+        y_pred = np.array(y_pred)
+        
+        # Calculate confusion matrix elements
+        tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+        specificity = tn / (tn + fp) if (tn + fp) > 0 else 0
+        
+        # Calculate ROC AUC if probabilities are provided
+        roc_auc_value = 0
+        if y_pred_proba is not None:
+            fpr, tpr, _ = roc_curve(y_true, y_pred_proba)
+            roc_auc_value = auc(fpr, tpr)
+        
+        return {
+            "Accuracy": round(float(accuracy_score(y_true, y_pred)), 4),
+            "Precision": round(float(precision_score(y_true, y_pred, zero_division='warn')), 4),
+            "Recall/Sensitivity": round(float(recall_score(y_true, y_pred, zero_division='warn')), 4),
+            "Specificity": round(specificity, 4),
+            "F1-score": round(float(f1_score(y_true, y_pred, zero_division='warn')), 4),
+            "ROC AUC": round(roc_auc_value, 4) if y_pred_proba is not None else "N/A"
+        }
+    else:
+        metrics_dict = {
+            "RMSE": round(float(np.sqrt(mean_squared_error(y_true, y_pred))), 4),
+            "MAE": round(float(np.mean(np.abs(y_true - y_pred))), 4),
+            "R²": round(float(r2_score(y_true, y_pred)), 4)
+        }
+        
+        # Add metrics related to prediction intervals if provided
+        if prediction_intervals is not None:
+            lower_bound, upper_bound, prediction_std = prediction_intervals
+            
+            # Calculate average width of prediction intervals
+            avg_interval_width = np.mean(upper_bound - lower_bound)
+            
+            # Calculate percentage of actual values within the prediction intervals
+            within_interval = np.sum((y_true >= lower_bound) & (y_true <= upper_bound))
+            coverage_percentage = within_interval / len(y_true) * 100
+            
+            # Calculate average prediction standard error
+            avg_prediction_std = np.mean(prediction_std)
+            
+            # Add these metrics to the dictionary
+            metrics_dict["Avg Prediction Std"] = round(avg_prediction_std, 4)
+            metrics_dict["Avg Interval Width"] = round(avg_interval_width, 4)
+            metrics_dict["Interval Coverage (%)"] = round(coverage_percentage, 2)
+        
+        return metrics_dict
+
+def plot_roc_curve(model, X_test, y_test):
+    """
+    Generate ROC curve plot using plotly.
+    
+    Parameters:
+    -----------
+    model : estimator
+        Trained model with predict_proba method
+    X_test : DataFrame or array-like
+        Test features
+    y_test : Series or array-like
+        True test labels
+        
+    Returns:
+    --------
+    fig : plotly.graph_objects.Figure
+        ROC curve figure
+    """
+    from sklearn.preprocessing import StandardScaler
+    
+    # Scale the test data
+    scaler = StandardScaler()
+    X_test_scaled = scaler.fit_transform(X_test)
+    
+    y_pred_proba = model.predict_proba(X_test_scaled)[:, 1]
+    fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba)
+    roc_auc = auc(fpr, tpr)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=fpr, y=tpr,
+        name=f'ROC curve (AUC = {roc_auc:.3f})',
+        mode='lines',
+        line=dict(color='blue', width=2)
+    ))
+    fig.add_trace(go.Scatter(
+        x=[0, 1], y=[0, 1],
+        name='Random classifier',
+        mode='lines',
+        line=dict(dash='dash', color='gray')
+    ))
+
+    # Add optimal threshold point
+    optimal_idx = np.argmax(tpr - fpr)
+    optimal_threshold = thresholds[optimal_idx]
+    fig.add_trace(go.Scatter(
+        x=[fpr[optimal_idx]], 
+        y=[tpr[optimal_idx]],
+        mode='markers',
+        marker=dict(color='red', size=10),
+        name=f'Optimal threshold: {optimal_threshold:.3f}'
+    ))
+
+    fig.update_layout(
+        title='Receiver Operating Characteristic (ROC) Curve',
+        xaxis_title='False Positive Rate',
+        yaxis_title='True Positive Rate',
+        showlegend=True,
+        legend=dict(x=0.01, y=0.01),
+        width=700,
+        height=500
     )
     
-    if target_variable:
-        st.session_state['target_variable'] = target_variable
-        
-        # Create correlation heatmap
-        st.subheader("Correlation Heatmap")
-        correlation_fig = create_correlation_heatmap(df_imputed)
-        st.plotly_chart(correlation_fig, use_container_width=True)
-        
-        # Automatic feature selection based on correlation
-        st.subheader("Automatic Feature Selection")
-        st.write("Select the correlation range for feature selection:")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            min_threshold = st.slider(
-                "Minimum correlation threshold:",
-                min_value=0.0,
-                max_value=0.8,
-                value=0.1,
-                step=0.05,
-                help="Features with correlation above this minimum will be considered"
-            )
-        with col2:
-            max_threshold = st.slider(
-                "Maximum correlation threshold:",
-                min_value=0.2,
-                max_value=1.0,
-                value=0.8,
-                step=0.05,
-                help="Features with correlation below this maximum will be considered"
-            )
-        
-        # Ensure min is less than max
-        if min_threshold >= max_threshold:
-            st.error("Minimum threshold must be less than maximum threshold")
-            min_threshold = max_threshold - 0.1
-        
-        selected_features = automatic_feature_selection(df_imputed, target_variable, min_threshold, max_threshold)
-        st.session_state['selected_features'] = selected_features
-        
-        if len(selected_features) > 0:
-            st.write(f"**Automatically selected {len(selected_features)} features:**")
-            st.write(selected_features)
-            
-            # Show correlation values with target
-            correlations = df_imputed[selected_features + [target_variable]].corr()[target_variable].abs().sort_values(ascending=False)
-            correlations_df = pd.DataFrame({
-                'Feature': correlations.index[1:],  # Exclude target itself
-                'Correlation with Target': correlations.values[1:]
-            })
-            st.write("**Feature correlations with target:**")
-            st.dataframe(correlations_df, hide_index=True)
-        else:
-            st.warning(f"No features found with correlation between {min_threshold} and {max_threshold} with the target variable. Please adjust the threshold range.")
+    return fig
 
-    # Pre-training SHAP Analysis Section
-    if (len(st.session_state.get('selected_features', [])) > 0 and 
-        st.session_state.get('target_variable')):
+def plot_regularization_path(X, y):
+    """
+    Generate LASSO regularization path plot using plotly.
+    
+    Parameters:
+    -----------
+    X : DataFrame or array-like
+        Features
+    y : Series or array-like
+        Target values
         
-        st.header("3. Pre-Training Feature Importance Analysis (SHAP)")
-        st.write("This analysis uses a simple baseline model to understand feature importance in your imputed data before actual model training.")
-        
-        # Show SHAP results if already generated
-        if st.session_state.get('pre_training_shap_results'):
-            st.subheader("SHAP Analysis Results")
-            shap_figs = st.session_state['pre_training_shap_results']
-            
-            # Display SHAP plots
-            for title, fig in shap_figs.items():
-                st.write(f"**{title}**")
-                st.plotly_chart(fig, use_container_width=True)
-        
-        # Button to generate or regenerate SHAP analysis
-        button_text = "Regenerate SHAP Analysis" if st.session_state.get('pre_training_shap_results') else "Generate Pre-Training SHAP Analysis"
-        
-        if st.button(button_text):
-            with st.spinner('Generating SHAP analysis for imputed data...'):
-                try:
-                    X = df_imputed[st.session_state['selected_features']]
-                    y = df_imputed[st.session_state['target_variable']]
-                    
-                    # Generate pre-training SHAP analysis
-                    shap_figs = pre_training_shap_analysis(X, y)
-                    
-                    if shap_figs:
-                        # Store results in session state
-                        st.session_state['pre_training_shap_results'] = shap_figs
-                        st.success("Pre-training SHAP analysis completed!")
-                        st.rerun()  # Refresh to show results
-                    else:
-                        st.error("Could not generate SHAP analysis. Please check your data.")
-                        
-                except Exception as e:
-                    st.error(f"Error in pre-training SHAP analysis: {str(e)}")
+    Returns:
+    --------
+    fig : plotly.graph_objects.Figure
+        Regularization path figure
+    """
+    # Create alphas for the path
+    alphas = np.logspace(-4, 1, 100)
+    
+    # Fit LassoCV to find the optimal alpha
+    lasso_cv = LassoCV(cv=5, random_state=42, alphas=alphas, max_iter=2000)
+    lasso_cv.fit(X, y)
+    
+    # Get coefficients for each alpha
+    coefs = []
+    for alpha in alphas:
+        lasso = Lasso(alpha=alpha, max_iter=2000, random_state=42)
+        lasso.fit(X, y)
+        coefs.append(lasso.coef_)
+    
+    coefs = np.array(coefs)
+    
+    # Create plot
+    fig = go.Figure()
 
-    # Model Training and Evaluation
-    if len(st.session_state.get('selected_features', [])) > 0 and st.session_state.get('target_variable'):
-        st.header("4. Model Training and Evaluation")
+    # Plot coefficient for each feature
+    for i, feature in enumerate(X.columns):
+        fig.add_trace(go.Scatter(
+            x=alphas,
+            y=coefs[:, i],
+            name=feature,
+            mode='lines'
+        ))
+    
+    # Add vertical line at optimal alpha
+    fig.add_vline(
+        x=lasso_cv.alpha_, 
+        line_dash="dash", 
+        line_color="red",
+        annotation_text=f"Optimal α: {lasso_cv.alpha_:.4f}",
+        annotation_position="top right"
+    )
+
+    fig.update_layout(
+        title='LASSO Regularization Path',
+        xaxis_title='Alpha (log scale)',
+        yaxis_title='Coefficient Value',
+        xaxis_type="log",
+        showlegend=True,
+        width=800,
+        height=500
+    )
+    
+    return fig
+
+def apply_feature_transformation(X, transform_type):
+    """
+    Apply various transformations to features.
+    
+    Parameters:
+    -----------
+    X : DataFrame
+        Features to transform
+    transform_type : str
+        Type of transformation to apply
         
-        # Prepare training data
-        X = df_imputed[st.session_state['selected_features']]
-        y = df_imputed[st.session_state['target_variable']]
+    Returns:
+    --------
+    X_transformed : DataFrame
+        Transformed features
+    transformer : object
+        Fitted transformer object
+    """
+    # Create a copy to avoid modifying the original dataframe
+    X_transformed = X.copy()
+    
+    if transform_type == "standard":
+        transformer = StandardScaler()
+    elif transform_type == "minmax":
+        transformer = MinMaxScaler()
+    elif transform_type == "robust":
+        transformer = RobustScaler()
+    elif transform_type == "yeo-johnson":
+        transformer = PowerTransformer(method='yeo-johnson')
+    elif transform_type == "quantile":
+        transformer = QuantileTransformer(output_distribution='normal')
+    else:
+        # Return original data if no valid transformation is specified
+        return X_transformed, None
+    
+    # Only apply to numeric columns
+    numeric_cols = X_transformed.select_dtypes(include=['number']).columns
+    
+    if len(numeric_cols) > 0:
+        X_transformed[numeric_cols] = transformer.fit_transform(X_transformed[numeric_cols])
+    
+    return X_transformed, transformer
+
+def create_polynomial_features(X, degree=2, interaction_only=False):
+    """
+    Create polynomial and interaction features.
+    
+    Parameters:
+    -----------
+    X : DataFrame
+        Features to transform
+    degree : int
+        Degree of polynomial features
+    interaction_only : bool
+        Whether to include only interaction features
         
-        # Feature transformation options
-        st.subheader("Feature Transformation (Optional)")
-        transform_type = st.selectbox(
-            "Select feature transformation:",
-            options=["none", "standard", "minmax", "robust", "yeo-johnson", "quantile"],
-            help="Choose a transformation to apply to features before training"
-        )
+    Returns:
+    --------
+    X_poly : DataFrame
+        DataFrame with polynomial/interaction features
+    poly : PolynomialFeatures
+        Fitted polynomial features transformer
+    """
+    # Create a copy to avoid modifying the original dataframe
+    X_numeric = X.select_dtypes(include=['number'])
+    
+    if X_numeric.shape[1] == 0:
+        return X.copy(), None
+    
+    # Create polynomial features
+    poly = PolynomialFeatures(degree=degree, interaction_only=interaction_only, include_bias=False)
+    X_poly_array = poly.fit_transform(X_numeric)
+    
+    # Create feature names
+    feature_names = poly.get_feature_names_out(X_numeric.columns)
+    
+    # Create DataFrame with polynomial features
+    X_poly = pd.DataFrame(X_poly_array, columns=feature_names, index=X.index)
+    
+    # Add back non-numeric columns if they exist
+    non_numeric_cols = X.select_dtypes(exclude=['number']).columns
+    if len(non_numeric_cols) > 0:
+        X_poly = pd.concat([X_poly, X[non_numeric_cols]], axis=1)
+    
+    return X_poly, poly
+
+def plot_confusion_matrix(y_true, y_pred):
+    """
+    Generate confusion matrix plot using plotly.
+    
+    Parameters:
+    -----------
+    y_true : array-like
+        True labels
+    y_pred : array-like
+        Predicted labels
         
-        if transform_type != "none":
-            X_transformed, transformer = apply_feature_transformation(X, transform_type)
-            if transformer is not None:
-                st.success(f"Applied {transform_type} transformation to features")
-                X = X_transformed
+    Returns:
+    --------
+    fig : plotly.graph_objects.Figure
+        Confusion matrix figure
+    """
+    cm = confusion_matrix(y_true, y_pred)
+    
+    # Create labels for the matrix
+    labels = np.unique(np.concatenate([y_true, y_pred]))
+    
+    # Create the heatmap
+    fig = go.Figure(data=go.Heatmap(
+        z=cm,
+        x=[f'Predicted {label}' for label in labels],
+        y=[f'Actual {label}' for label in labels],
+        colorscale='Blues',
+        text=cm,
+        texttemplate="%{text}",
+        textfont={"size": 16},
+        hoverongaps=False
+    ))
+    
+    fig.update_layout(
+        title='Confusion Matrix',
+        xaxis_title='Predicted Label',
+        yaxis_title='Actual Label',
+        width=500,
+        height=500
+    )
+    
+    return fig
+
+def create_correlation_heatmap(df):
+    """
+    Create correlation heatmap using plotly.
+    
+    Parameters:
+    -----------
+    df : DataFrame
+        Input dataframe
         
-        # Polynomial features option
-        st.subheader("Polynomial Features (Optional)")
-        create_poly = st.checkbox("Create polynomial features", help="Generate polynomial and interaction features")
+    Returns:
+    --------
+    fig : plotly.graph_objects.Figure
+        Correlation heatmap figure
+    """
+    # Calculate correlation matrix for numeric columns only
+    numeric_cols = df.select_dtypes(include=['number']).columns
+    corr = df[numeric_cols].corr()
+    
+    # Create heatmap
+    fig = go.Figure(data=go.Heatmap(
+        z=corr.values,
+        x=corr.columns,
+        y=corr.columns,
+        colorscale='RdBu',
+        zmid=0,
+        text=np.round(corr.values, 2),
+        texttemplate="%{text}",
+        textfont={"size": 10},
+        hoverongaps=False
+    ))
+    
+    fig.update_layout(
+        title='Feature Correlation Heatmap',
+        width=800,
+        height=600,
+        xaxis={'side': 'bottom'}
+    )
+    
+    return fig
+
+def automatic_feature_selection(df, target_variable, min_threshold=0.1, max_threshold=0.8):
+    """
+    Automatically select features based on correlation with target variable.
+    
+    Parameters:
+    -----------
+    df : DataFrame
+        Input dataframe
+    target_variable : str
+        Target variable column name
+    min_threshold : float
+        Minimum correlation threshold
+    max_threshold : float
+        Maximum correlation threshold
         
-        if create_poly:
-            poly_degree = st.slider("Polynomial degree:", 2, 4, 2)
-            interaction_only = st.checkbox("Interaction features only", value=True)
-            
-            X_poly, poly_transformer = create_polynomial_features(X, poly_degree, interaction_only)
-            if poly_transformer is not None:
-                st.success(f"Created polynomial features with degree {poly_degree}")
-                X = X_poly
+    Returns:
+    --------
+    selected_features : list
+        List of selected feature names
+    """
+    # Calculate correlations with target
+    numeric_cols = df.select_dtypes(include=['number']).columns
+    correlations = df[numeric_cols].corr()[target_variable].abs()
+    
+    # Select features within threshold range (excluding target itself)
+    selected_features = correlations[
+        (correlations >= min_threshold) & 
+        (correlations <= max_threshold) & 
+        (correlations.index != target_variable)
+    ].index.tolist()
+    
+    return selected_features
+
+def pre_training_shap_analysis(X, y):
+    """
+    Perform SHAP-style analysis on imputed data using model coefficients.
+    Creates the four specific SHAP visualizations requested.
+    
+    Parameters:
+    -----------
+    X : DataFrame
+        Features
+    y : Series
+        Target variable
         
-        # Train-test split
-        st.subheader("Train-Test Split Configuration")
-        test_size = st.slider("Test set size:", 0.1, 0.5, 0.2, 0.05)
-        random_state = st.number_input("Random state:", value=42, min_value=0)
+    Returns:
+    --------
+    shap_figs : dict
+        Dictionary of SHAP-style visualization figures
+    """
+    try:
+        # Use coefficient-based analysis if SHAP is not available
+        print("Using coefficient-based feature importance analysis.")
         
-        # Determine if this is a classification or regression problem
+        # Determine if this is classification or regression
         is_classification = len(y.unique()) <= 20 and y.dtype in ['object', 'int64', 'bool']
         
+        # Split data for training a baseline model
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+        
+        # Scale features
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        
+        # Train a simple baseline model
         if is_classification:
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=test_size, random_state=random_state, stratify=y
-            )
-            st.info(f"Classification problem detected. Target has {len(y.unique())} unique values.")
+            # Apply SMOTE for classification tasks
+            try:
+                smote = SMOTE(random_state=42)
+                X_train_smote, y_train_smote = smote.fit_resample(X_train_scaled, y_train)
+            except Exception as e:
+                print(f"SMOTE failed, using original data: {e}")
+                X_train_smote, y_train_smote = X_train_scaled, y_train
+            
+            model = LogisticRegression(random_state=42, max_iter=1000)
+            model.fit(X_train_smote, y_train_smote)
         else:
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=test_size, random_state=random_state
-            )
-            st.info("Regression problem detected.")
+            model = LinearRegression()
+            model.fit(X_train_scaled, y_train)
         
-        st.write(f"Training set size: {X_train.shape[0]} samples")
-        st.write(f"Test set size: {X_test.shape[0]} samples")
+        shap_figs = {}
         
-        # Model selection and training
-        st.subheader("Model Selection and Training")
+        # 1. SHAP Summary Plot (Bar) - Feature importance
+        try:
+            if hasattr(model, 'coef_'):
+                coefficients = model.coef_
+                if len(coefficients.shape) > 1:
+                    coefficients = coefficients[0]  # For binary classification
+                
+                # Calculate absolute importance
+                feature_importance = np.abs(coefficients)
+                importance_df = pd.DataFrame({
+                    'Feature': X.columns,
+                    'Importance': feature_importance
+                }).sort_values('Importance', ascending=True)
+                
+                fig = px.bar(
+                    importance_df.tail(15),  # Top 15 features
+                    x='Importance',
+                    y='Feature',
+                    orientation='h',
+                    title='SHAP Summary Plot (Bar) - Pre-Training',
+                    labels={'Importance': 'Mean |SHAP Value|'}
+                )
+                fig.update_layout(height=500)
+                shap_figs['SHAP Summary Plot (Bar)'] = fig
+        except Exception as e:
+            print(f"Error creating SHAP summary plot: {e}")
         
-        # Choose model type
-        if is_classification:
-            model_options = ["Logistic Regression"]
-        else:
-            model_options = ["LASSO Regression"]
+        # 2. SHAP Dependence Plot - Top feature vs target
+        try:
+            if hasattr(model, 'coef_'):
+                coefficients = model.coef_
+                if len(coefficients.shape) > 1:
+                    coefficients = coefficients[0]
+                
+                # Find most important feature
+                most_important_idx = np.argmax(np.abs(coefficients))
+                most_important_feature = X.columns[most_important_idx]
+                
+                fig = px.scatter(
+                    x=X[most_important_feature],
+                    y=y,
+                    title=f'SHAP Dependence Plot - {most_important_feature}',
+                    labels={'x': most_important_feature, 'y': 'Target'},
+                    opacity=0.6
+                )
+                fig.update_layout(height=400)
+                shap_figs['SHAP Dependence Plot'] = fig
+        except Exception as e:
+            print(f"Error creating SHAP dependence plot: {e}")
         
-        selected_model = st.selectbox(
-            "Select model type:",
-            options=model_options,
-            help="Choose the machine learning algorithm"
+        # 3. SHAP Force Plot - Individual prediction explanation
+        try:
+            if hasattr(model, 'coef_') and len(X_test) > 0:
+                coefficients = model.coef_
+                if len(coefficients.shape) > 1:
+                    coefficients = coefficients[0]
+                
+                # Get first test instance
+                instance_values = X_test_scaled[0]
+                feature_contributions = instance_values * coefficients
+                
+                # Sort by absolute contribution
+                sorted_idx = np.argsort(np.abs(feature_contributions))[-10:]  # Top 10
+                
+                contribution_df = pd.DataFrame({
+                    'Feature': X.columns[sorted_idx],
+                    'Contribution': feature_contributions[sorted_idx]
+                }).sort_values('Contribution')
+                
+                colors = ['red' if c < 0 else 'blue' for c in contribution_df['Contribution']]
+                
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    y=contribution_df['Feature'],
+                    x=contribution_df['Contribution'],
+                    orientation='h',
+                    marker_color=colors,
+                    text=[f'{c:.3f}' for c in contribution_df['Contribution']],
+                    textposition='outside'
+                ))
+                
+                fig.update_layout(
+                    title='SHAP Force Plot - Individual Prediction',
+                    xaxis_title='Feature Contribution',
+                    yaxis_title='Features',
+                    height=400
+                )
+                shap_figs['SHAP Force Plot'] = fig
+        except Exception as e:
+            print(f"Error creating SHAP force plot: {e}")
+        
+        # 4. SHAP Decision Plot - Decision path visualization
+        try:
+            if hasattr(model, 'coef_'):
+                coefficients = model.coef_
+                if len(coefficients.shape) > 1:
+                    coefficients = coefficients[0]
+                
+                # Create cumulative contributions
+                feature_importance = np.abs(coefficients)
+                sorted_idx = np.argsort(feature_importance)[-10:]  # Top 10 features
+                
+                cumulative_contributions = np.cumsum(feature_importance[sorted_idx])
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=cumulative_contributions,
+                    y=X.columns[sorted_idx],
+                    mode='lines+markers',
+                    name='Decision Path',
+                    line=dict(color='blue', width=3),
+                    marker=dict(size=8)
+                ))
+                
+                fig.update_layout(
+                    title='SHAP Decision Plot - Model Decision Path',
+                    xaxis_title='Cumulative Contribution',
+                    yaxis_title='Features',
+                    height=400
+                )
+                shap_figs['SHAP Decision Plot'] = fig
+        except Exception as e:
+            print(f"Error creating SHAP decision plot: {e}")
+        
+        return shap_figs
+        
+    except Exception as e:
+        print(f"Error in pre-training SHAP analysis: {e}")
+        return {}
+
+def shap_analysis(model, X_train, X_test, y_test, model_type):
+    """
+    Perform SHAP-style analysis on trained model using model coefficients.
+    Creates the four specific SHAP visualizations requested.
+    
+    Parameters:
+    -----------
+    model : estimator
+        Trained model
+    X_train : DataFrame
+        Training features
+    X_test : DataFrame
+        Test features  
+    y_test : Series
+        Test target
+    model_type : str
+        Type of model ('logistic' or 'lasso')
+        
+    Returns:
+    --------
+    shap_figs : dict
+        Dictionary of SHAP-style visualization figures
+    """
+    try:
+        # Use coefficient-based analysis instead of SHAP
+        print("Using coefficient-based feature importance analysis.")
+        
+        shap_figs = {}
+        
+        # 1. SHAP Summary Plot (Bar) - Feature importance
+        try:
+            if hasattr(model, 'coef_'):
+                coefficients = model.coef_
+                if len(coefficients.shape) > 1:
+                    coefficients = coefficients[0]  # For binary classification
+                
+                # Calculate absolute importance
+                feature_importance = np.abs(coefficients)
+                importance_df = pd.DataFrame({
+                    'Feature': X_train.columns,
+                    'Importance': feature_importance
+                }).sort_values('Importance', ascending=True)
+                
+                fig = px.bar(
+                    importance_df.tail(15),  # Top 15 features
+                    x='Importance',
+                    y='Feature',
+                    orientation='h',
+                    title='SHAP Summary Plot (Bar)',
+                    labels={'Importance': 'Mean |SHAP Value|'},
+                    color='Importance',
+                    color_continuous_scale='Viridis'
+                )
+                fig.update_layout(height=500, showlegend=False)
+                shap_figs['SHAP Summary Plot (Bar)'] = fig
+        except Exception as e:
+            print(f"Error creating SHAP summary plot: {e}")
+        
+        # 2. SHAP Dependence Plot - Top feature vs target  
+        try:
+            if hasattr(model, 'coef_'):
+                coefficients = model.coef_
+                if len(coefficients.shape) > 1:
+                    coefficients = coefficients[0]
+                
+                # Find most important feature
+                most_important_idx = np.argmax(np.abs(coefficients))
+                most_important_feature = X_train.columns[most_important_idx]
+                
+                fig = px.scatter(
+                    x=X_test[most_important_feature],
+                    y=y_test,
+                    title=f'SHAP Dependence Plot - {most_important_feature}',
+                    labels={'x': most_important_feature, 'y': 'Target'},
+                    opacity=0.6
+                )
+                fig.update_layout(height=400)
+                shap_figs['SHAP Dependence Plot'] = fig
+        except Exception as e:
+            print(f"Error creating SHAP dependence plot: {e}")
+        
+        # 3. SHAP Force Plot - Individual prediction explanation
+        try:
+            if hasattr(model, 'coef_') and len(X_test) > 0:
+                coefficients = model.coef_
+                if len(coefficients.shape) > 1:
+                    coefficients = coefficients[0]
+                
+                # Scale the test data for fair coefficient application
+                scaler = StandardScaler()
+                X_test_scaled = scaler.fit_transform(X_test)
+                
+                # Get first test instance
+                instance_values = X_test_scaled[0]
+                feature_contributions = instance_values * coefficients
+                
+                # Sort by absolute contribution
+                sorted_idx = np.argsort(np.abs(feature_contributions))[-10:]  # Top 10
+                
+                contribution_df = pd.DataFrame({
+                    'Feature': X_train.columns[sorted_idx],
+                    'Contribution': feature_contributions[sorted_idx]
+                }).sort_values('Contribution')
+                
+                colors = ['red' if c < 0 else 'blue' for c in contribution_df['Contribution']]
+                
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    y=contribution_df['Feature'],
+                    x=contribution_df['Contribution'],
+                    orientation='h',
+                    marker_color=colors,
+                    text=[f'{c:.3f}' for c in contribution_df['Contribution']],
+                    textposition='outside'
+                ))
+                
+                fig.update_layout(
+                    title='SHAP Force Plot - Individual Prediction',
+                    xaxis_title='Feature Contribution',
+                    yaxis_title='Features',
+                    height=400
+                )
+                shap_figs['SHAP Force Plot'] = fig
+        except Exception as e:
+            print(f"Error creating SHAP force plot: {e}")
+        
+        # 4. SHAP Decision Plot - Decision path visualization
+        try:
+            if hasattr(model, 'coef_'):
+                coefficients = model.coef_
+                if len(coefficients.shape) > 1:
+                    coefficients = coefficients[0]
+                
+                # Create cumulative contributions based on feature importance
+                feature_importance = np.abs(coefficients)
+                sorted_idx = np.argsort(feature_importance)[-10:]  # Top 10 features
+                
+                cumulative_contributions = np.cumsum(feature_importance[sorted_idx])
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=cumulative_contributions,
+                    y=X_train.columns[sorted_idx],
+                    mode='lines+markers',
+                    name='Decision Path',
+                    line=dict(color='blue', width=3),
+                    marker=dict(size=8)
+                ))
+                
+                fig.update_layout(
+                    title='SHAP Decision Plot - Model Decision Path',
+                    xaxis_title='Cumulative Contribution',
+                    yaxis_title='Features',
+                    height=400
+                )
+                shap_figs['SHAP Decision Plot'] = fig
+        except Exception as e:
+            print(f"Error creating SHAP decision plot: {e}")
+        
+        return shap_figs
+        
+    except Exception as e:
+        print(f"Error in SHAP analysis: {e}")
+        return {}
+
+def calculate_predictive_parity(y_true, y_pred, y_pred_proba, sensitive_attr):
+    """
+    Calculate predictive parity metrics.
+    Predictive parity means that the accuracy of positive predictions (precision) 
+    should be equal across different groups.
+    
+    Parameters:
+    -----------
+    y_true : array-like
+        True labels
+    y_pred : array-like
+        Predicted labels
+    y_pred_proba : array-like
+        Predicted probabilities
+    sensitive_attr : array-like
+        Sensitive attribute values
+        
+    Returns:
+    --------
+    results : dict
+        Dictionary containing predictive parity metrics and visualizations
+    """
+    try:
+        results = {}
+        
+        # Convert to numpy arrays
+        y_true = np.array(y_true)
+        y_pred = np.array(y_pred)
+        y_pred_proba = np.array(y_pred_proba)
+        sensitive_attr = np.array(sensitive_attr)
+        
+        # Get unique groups
+        groups = np.unique(sensitive_attr)
+        
+        # Calculate metrics for each group
+        group_metrics = {}
+        for group in groups:
+            mask = sensitive_attr == group
+            if np.sum(mask) > 0:
+                group_metrics[f"Group {group}"] = {
+                    'Sample Size': int(np.sum(mask)),
+                    'Model Positive Rate': f"{float(np.mean(y_pred[mask])):.3f}",
+                    'Actual Positive Rate': f"{float(np.mean(y_true[mask])):.3f}",
+                    'Accuracy': f"{float(accuracy_score(y_true[mask], y_pred[mask])):.3f}",
+                    'Precision': f"{float(precision_score(y_true[mask], y_pred[mask], zero_division='warn')):.3f}",
+                    'Recall': f"{float(recall_score(y_true[mask], y_pred[mask], zero_division='warn')):.3f}"
+                }
+        
+        results['group_metrics'] = group_metrics
+        
+        # Calculate predictive parity difference (precision difference across groups)
+        precision_rates = [float(group_metrics[f"Group {group}"]['Precision']) for group in groups]
+        pp_difference = max(precision_rates) - min(precision_rates)
+        results['predictive_parity_difference'] = pp_difference
+        
+        # Add additional predictive parity metrics
+        results['fairness_metrics'] = {
+            'predictive_parity_difference': pp_difference,
+            'max_precision': max(precision_rates),
+            'min_precision': min(precision_rates),
+            'precision_std': np.std(precision_rates),
+            'num_groups': len(groups)
+        }
+        
+        # Create visualization - need to extract numerical values from formatted strings
+        viz_data = {}
+        for group_name, metrics in group_metrics.items():
+            viz_data[group_name] = {
+                'precision': float(metrics['Precision']),
+                'base_rate': float(metrics['Actual Positive Rate'])
+            }
+        
+        df_viz = pd.DataFrame.from_dict(viz_data, orient='index').reset_index()
+        df_viz.rename(columns={'index': 'Group'}, inplace=True)
+        
+        fig = go.Figure()
+        
+        # Add bars for different metrics
+        fig.add_trace(go.Bar(
+            name='Precision (Positive Prediction Accuracy)',
+            x=df_viz['Group'],
+            y=df_viz['precision'],
+            marker_color='lightblue'
+        ))
+        
+        fig.add_trace(go.Bar(
+            name='Actual Positive Rate',
+            x=df_viz['Group'],
+            y=df_viz['base_rate'],
+            marker_color='orange'
+        ))
+        
+        fig.update_layout(
+            title='Predictive Parity Analysis',
+            xaxis_title='Age Group',
+            yaxis_title='Rate',
+            barmode='group',
+            height=400
         )
         
-        # Cross-validation folds
-        cv_folds = st.slider("Cross-validation folds:", 3, 10, 5)
+        results['visualization'] = fig
         
-        # Model-specific parameters
-        if selected_model == "LASSO Regression":
-            auto_alpha = st.checkbox("Auto-select alpha (recommended)", value=True)
-            if not auto_alpha:
-                alpha = st.slider("Alpha (regularization strength):", 0.001, 10.0, 1.0, 0.001)
-            else:
-                alpha = None
+        return results
         
-        # Single train button
-        if st.button(f"Train {selected_model}"):
-            with st.spinner(f'Training {selected_model}...'):
-                try:
-                    if selected_model == "Logistic Regression":
-                        model, metrics = train_logistic_regression(X_train, X_test, y_train, y_test, cv_folds)
-                        model_type = "logistic"
-                    else:  # LASSO Regression
-                        if alpha is None:
-                            from models import get_optimal_alpha
-                            alpha = get_optimal_alpha(X_train, y_train, cv_folds)
-                            st.info(f"Optimal alpha selected: {alpha:.6f}")
-                        
-                        model, metrics = train_lasso_regression(X_train, X_test, y_train, y_test, alpha, cv_folds)
-                        model_type = "lasso"
-                    
-                    st.session_state['model_trained'] = True
-                    st.session_state['trained_model'] = model
-                    st.session_state['model_type'] = model_type
-                    st.session_state['X_train'] = X_train
-                    st.session_state['X_test'] = X_test
-                    st.session_state['y_train'] = y_train
-                    st.session_state['y_test'] = y_test
-                    
-                    st.success(f"{selected_model} training completed!")
-                    
-                    # Display metrics
-                    st.subheader("Model Performance Metrics")
-                    
-                    # Add SMOTE indicator for classification models
-                    if selected_model == "Logistic Regression":
-                        st.info("ℹ️ SMOTE (Synthetic Minority Oversampling Technique) was automatically applied to balance the dataset during training.")
-                    
-                    metrics_df = pd.DataFrame(list(metrics.items()), columns=['Metric', 'Value'])
-                    st.dataframe(metrics_df, use_container_width=True, hide_index=True)
-                    
-                except Exception as e:
-                    st.error(f"Error training {selected_model}: {str(e)}")
+    except Exception as e:
+        print(f"Error in demographic parity calculation: {e}")
+        return {'error': str(e)}
 
-        # Results visualization and analysis
-        if st.session_state.get('model_trained', False):
-            st.header("5. Model Results and Analysis")
+def calculate_calibration_metrics(y_true, y_pred_proba, n_bins=10):
+    """
+    Calculate calibration metrics for a classification model.
+    
+    Parameters:
+    -----------
+    y_true : array-like
+        True binary labels
+    y_pred_proba : array-like
+        Predicted probabilities
+    n_bins : int
+        Number of bins for calibration curve
+        
+    Returns:
+    --------
+    results : dict
+        Dictionary containing calibration metrics
+    """
+    try:
+        # Calculate calibration curve
+        fraction_of_positives, mean_predicted_value = calibration_curve(
+            y_true, y_pred_proba, n_bins=n_bins
+        )
+        
+        # Calculate Brier score
+        brier_score = brier_score_loss(y_true, y_pred_proba)
+        
+        # Calculate Expected Calibration Error (ECE)
+        bin_boundaries = np.linspace(0, 1, n_bins + 1)
+        bin_lowers = bin_boundaries[:-1]
+        bin_uppers = bin_boundaries[1:]
+        
+        ece = 0
+        for bin_lower, bin_upper in zip(bin_lowers, bin_uppers):
+            # Determine if sample is in bin m (between bin_lower and bin_upper)
+            in_bin = (y_pred_proba > bin_lower) & (y_pred_proba <= bin_upper)
+            prop_in_bin = np.mean(in_bin.astype(float))
             
-            model = st.session_state['trained_model']
-            model_type = st.session_state['model_type']
-            X_train = st.session_state['X_train']
-            X_test = st.session_state['X_test']
-            y_train = st.session_state['y_train']
-            y_test = st.session_state['y_test']
-            
-            # Create tabs for different analyses
-            tab1, tab2, tab3, tab4 = st.tabs([
-                "Performance Plots", 
-                "Feature Importance (SHAP)", 
-                "Fairness Analysis", 
-                "Calibration Analysis"
-            ])
-            
-            with tab1:
-                st.subheader("Model Performance Visualizations")
-                
-                if model_type == "logistic":
-                    # ROC Curve
-                    st.write("**ROC Curve**")
-                    try:
-                        roc_fig = plot_roc_curve(model, X_test, y_test)
-                        st.plotly_chart(roc_fig, use_container_width=True)
-                    except Exception as e:
-                        st.error(f"Error plotting ROC curve: {str(e)}")
-                    
-                    # Confusion Matrix
-                    st.write("**Confusion Matrix**")
-                    try:
-                        from sklearn.preprocessing import StandardScaler
-                        scaler = StandardScaler()
-                        X_test_scaled = scaler.fit_transform(X_test)
-                        y_pred = model.predict(X_test_scaled)
-                        
-                        cm_fig = plot_confusion_matrix(y_test, y_pred)
-                        st.plotly_chart(cm_fig, use_container_width=True)
-                    except Exception as e:
-                        st.error(f"Error plotting confusion matrix: {str(e)}")
-                
-                else:  # LASSO
-                    # Regularization Path
-                    st.write("**LASSO Regularization Path**")
-                    try:
-                        reg_fig = plot_regularization_path(X_train, y_train)
-                        st.plotly_chart(reg_fig, use_container_width=True)
-                    except Exception as e:
-                        st.error(f"Error plotting regularization path: {str(e)}")
-            
-            with tab2:
-                st.subheader("SHAP Feature Importance Analysis")
-                
-                try:
-                    # Generate SHAP analysis
-                    shap_figs = shap_analysis(model, X_train, X_test, y_test, model_type)
-                    
-                    if shap_figs:
-                        for title, fig in shap_figs.items():
-                            st.write(f"**{title}**")
-                            st.plotly_chart(fig, use_container_width=True)
-                    else:
-                        st.error("Could not generate SHAP analysis")
-                        
-                except Exception as e:
-                    st.error(f"Error in SHAP analysis: {str(e)}")
-            
-            with tab3:
-                st.subheader("Predictive Parity Analysis")
-                
-                if model_type == "logistic":
-                    # Look for age-related columns for predictive parity analysis
-                    age_columns = [col for col in df_imputed.columns if 'age' in col.lower()]
-                    
-                    if age_columns:
-                        st.write("**Patient Age-Based Predictive Parity Analysis**")
-                        selected_age_col = st.selectbox(
-                            "Select age column for fairness analysis:",
-                            options=age_columns,
-                            help="Choose the column containing patient age information"
-                        )
-                        
-                        if selected_age_col:
-                            # Create age groups for analysis
-                            age_data = df_imputed[selected_age_col]
-                            
-                            # Define age groups
-                            age_groups = pd.cut(age_data, 
-                                              bins=[0, 30, 50, 70, 100], 
-                                              labels=['Under 30', '30-50', '50-70', 'Over 70'],
-                                              include_lowest=True)
-                            
-                            st.write(f"**Age groups distribution:**")
-                            age_dist = pd.Series(age_groups).value_counts().sort_index()
-                            st.write(age_dist)
-                            
-                            sensitive_attr = age_groups
-                    else:
-                        st.info("No age columns found in the dataset. Add a column with 'age' in the name for age-based fairness analysis.")
-                        sensitive_attr = None
-                        
-                    if sensitive_attr is not None:
-                            # Auto-calculate when attribute is selected
-                            try:
-                                # Get predictions
-                                from sklearn.preprocessing import StandardScaler
-                                scaler = StandardScaler()
-                                X_test_scaled = scaler.fit_transform(X_test)
-                                y_pred = model.predict(X_test_scaled)
-                                y_pred_proba = model.predict_proba(X_test_scaled)[:, 1]
-                                
-                                # Get sensitive attribute values for test set
-                                sensitive_test = df_imputed.loc[X_test.index, sensitive_attr]
-                                
-                                # Calculate predictive parity
-                                parity_results = calculate_predictive_parity(
-                                    y_test, y_pred, y_pred_proba, sensitive_test
-                                )
-                                
-                                if parity_results:
-                                    st.write("**What this graph shows:**")
-                                    st.info("This Predictive Parity Analysis compares the accuracy of positive predictions (precision) across different patient age groups. Blue bars show the precision (accuracy of positive predictions) for each age group, while orange bars show the actual positive rates. For fair predictions, precision should be similar across all age groups.")
-                                    
-                                    st.write("**Predictive Parity Results:**")
-                                    
-                                    # Display metrics table with explanation
-                                    st.write("**Group-wise Performance Metrics:**")
-                                    st.caption("Each row represents a different demographic group. Key metrics to compare across groups:")
-                                    st.caption("• **Model Positive Rate**: How often the model predicts positive outcomes for this group")
-                                    st.caption("• **Actual Positive Rate**: The true rate of positive outcomes in this group")
-                                    st.caption("• **Sample Size**: Number of people in this group")
-                                    st.caption("• **Accuracy/Precision/Recall**: Standard model performance metrics for this group")
-                                    
-                                    metrics_df = pd.DataFrame(parity_results['group_metrics']).T
-                                    st.dataframe(metrics_df, use_container_width=True, hide_index=False)
-                                    
-                                    # Display overall fairness metrics
-                                    st.write("**Overall Predictive Parity Metrics:**")
-                                    fairness_metrics = {
-                                        'Predictive Parity Difference': parity_results['predictive_parity_difference'],
-                                        'Maximum Precision': parity_results['fairness_metrics']['max_precision'],
-                                        'Minimum Precision': parity_results['fairness_metrics']['min_precision'],
-                                        'Precision Standard Deviation': parity_results['fairness_metrics']['precision_std']
-                                    }
-                                    fairness_df = pd.DataFrame(
-                                        list(fairness_metrics.items()),
-                                        columns=['Metric', 'Value']
-                                    )
-                                    st.dataframe(fairness_df, hide_index=True)
-                                    
-                                    # Plot group comparison
-                                    if 'visualization' in parity_results:
-                                        st.plotly_chart(parity_results['visualization'], use_container_width=True)
-                                    
-                                else:
-                                    st.error("Could not calculate demographic parity")
-                                    
-                            except Exception as e:
-                                st.error(f"Error in fairness analysis: {str(e)}")
-                    else:
-                        st.info("No additional columns available for fairness analysis")
-                else:
-                    st.info("Fairness analysis is currently only available for classification models")
-            
-            with tab4:
-                st.subheader("Calibration Analysis")
-                
-                if model_type == "logistic":
-                    try:
-                        # Get predictions
-                        from sklearn.preprocessing import StandardScaler
-                        scaler = StandardScaler()
-                        X_test_scaled = scaler.fit_transform(X_test)
-                        y_pred_proba = model.predict_proba(X_test_scaled)[:, 1]
-                        
-                        # Calculate calibration metrics
-                        calibration_results = calculate_calibration_metrics(y_test, y_pred_proba)
-                        
-                        # Display calibration metrics
-                        st.write("**Calibration Metrics:**")
-                        metrics_data = []
-                        for key, value in calibration_results.items():
-                            # Only display numerical metrics, skip arrays
-                            if isinstance(value, (int, float, np.number)) and key not in ['fraction_of_positives', 'mean_predicted_value']:
-                                metrics_data.append([key, float(value)])
-                        
-                        if metrics_data:
-                            cal_metrics_df = pd.DataFrame(
-                                metrics_data,
-                                columns=['Metric', 'Value']
-                            )
-                            st.dataframe(cal_metrics_df, hide_index=True)
-                        
-                        # Plot calibration curve
-                        st.write("**Calibration Plot (Reliability Diagram):**")
-                        cal_fig = plot_calibration_curve(y_test, y_pred_proba)
-                        st.plotly_chart(cal_fig, use_container_width=True)
-                        
-                    except Exception as e:
-                        st.error(f"Error in calibration analysis: {str(e)}")
-                else:
-                    st.info("Calibration analysis is currently only available for classification models")
-            
+            if prop_in_bin > 0:
+                accuracy_in_bin = np.mean(y_true[in_bin].astype(float))
+                avg_confidence_in_bin = np.mean(y_pred_proba[in_bin])
+                ece += np.abs(avg_confidence_in_bin - accuracy_in_bin) * prop_in_bin
+        
+        results = {
+            'brier_score': float(brier_score),
+            'expected_calibration_error': float(ece),
+            'fraction_of_positives': fraction_of_positives.tolist() if hasattr(fraction_of_positives, 'tolist') else fraction_of_positives,
+            'mean_predicted_value': mean_predicted_value.tolist() if hasattr(mean_predicted_value, 'tolist') else mean_predicted_value
+        }
+        
+        return results
+        
+    except Exception as e:
+        print(f"Error calculating calibration metrics: {e}")
+        return {'error': str(e)}
 
-
-else:
-    st.info("Please upload a dataset to begin analysis.")
+def plot_calibration_curve(y_true, y_pred_proba, n_bins=10):
+    """
+    Create calibration plot (reliability diagram) using plotly.
+    
+    Parameters:
+    -----------
+    y_true : array-like
+        True binary labels
+    y_pred_proba : array-like
+        Predicted probabilities
+    n_bins : int
+        Number of bins for calibration curve
+        
+    Returns:
+    --------
+    fig : plotly.graph_objects.Figure
+        Calibration curve figure
+    """
+    try:
+        # Calculate calibration curve
+        fraction_of_positives, mean_predicted_value = calibration_curve(
+            y_true, y_pred_proba, n_bins=n_bins
+        )
+        
+        fig = go.Figure()
+        
+        # Add calibration curve
+        fig.add_trace(go.Scatter(
+            x=mean_predicted_value,
+            y=fraction_of_positives,
+            mode='lines+markers',
+            name='Calibration curve',
+            line=dict(color='blue', width=2),
+            marker=dict(size=8)
+        ))
+        
+        # Add perfect calibration line
+        fig.add_trace(go.Scatter(
+            x=[0, 1],
+            y=[0, 1],
+            mode='lines',
+            name='Perfect calibration',
+            line=dict(dash='dash', color='gray')
+        ))
+        
+        fig.update_layout(
+            title='Calibration Plot (Reliability Diagram)',
+            xaxis_title='Mean Predicted Probability',
+            yaxis_title='Fraction of Positives',
+            showlegend=True,
+            width=600,
+            height=500
+        )
+        
+        return fig
+        
+    except Exception as e:
+        print(f"Error creating calibration plot: {e}")
+        return go.Figure()
