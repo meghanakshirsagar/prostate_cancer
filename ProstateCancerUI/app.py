@@ -910,7 +910,7 @@ if st.session_state['df_imputed'] is not None:
                                 y_pred_proba = model.predict_proba(X_test_scaled)[:, 1]
                                 
                                 # Get sensitive attribute values for test set
-                                sensitive_test = df_imputed.loc[X_test.index, sensitive_attr]
+                                sensitive_test = sensitive_attr.loc[X_test.index]
                                 
                                 # Calculate predictive parity
                                 parity_results = calculate_predictive_parity(
