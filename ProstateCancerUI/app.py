@@ -389,7 +389,7 @@ st.header("1. Dataset and Preprocessing")
 APP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = APP_DIR.parent
 
-DATA_PATH = REPO_ROOT / "pi_cai_dataset.csv"
+DATA_PATH = REPO_ROOT / "ProstateCancerUI" / "pi_cai_dataset.csv"
 
 try:
     df = pd.read_csv(DATA_PATH)
