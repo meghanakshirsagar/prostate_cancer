@@ -65,26 +65,26 @@ st.markdown(
         letter-spacing: -0.01em;
     }
     h2 {
-        border-bottom: 1px solid var(--border);
-        padding-bottom: 0.4rem;
         margin-top: 2.2rem !important;
     }
     p, li { color: var(--muted); line-height: 1.65; }
     /* Info card used across the landing page */
     .info-card {
-        background: #ffffff;
+        background: #ffffff !important;
         border: 1px solid var(--border);
         border-radius: 14px;
         padding: 1.4rem 1.6rem;
         box-shadow: 0 2px 10px rgba(30,36,48,0.04);
+        min-height: 230px;
         height: 100%;
     }
     .info-card h4 {
-        margin: 0 0 0.6rem 0 !important;
+        margin: 0 0 0.7rem 0 !important;
         color: var(--brand) !important;
         font-size: 1.05rem;
+        font-weight: 700;
     }
-    .info-card p, .info-card li { color: var(--muted); font-size: 0.95rem; margin-bottom: 0.4rem; }
+    .info-card p, .info-card li { color: #26303c !important; font-size: 0.95rem; margin-bottom: 0.4rem; }
     .info-card ul { padding-left: 1.1rem; margin: 0; }
     .accent-bar { border-left: 4px solid var(--brand); }
     /* Metric cards */
@@ -131,6 +131,19 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
+# Resource links — edit these URLs as needed
+DATASET_URL = "https://pi-cai.grand-challenge.org/"
+PUBLICATION_URL = "https://doi.org/10.1007/978-3-032-25035-3_5"
+GITHUB_URL = "https://github.com/your-username/prostate-cancer-risk-stratification"  # TODO: replace with the real repo
+
+lc1, lc2, lc3 = st.columns(3)
+with lc1:
+    st.link_button("📊  PI-CAI dataset", DATASET_URL, use_container_width=True)
+with lc2:
+    st.link_button("📄  Publication (DOI)", PUBLICATION_URL, use_container_width=True)
+with lc3:
+    st.link_button("💻  GitHub repository", GITHUB_URL, use_container_width=True)
 
 st.header("About the platform")
 
@@ -189,7 +202,7 @@ with dc1:
         """
         <div class="info-card">
         <h4>Source</h4>
-        <p>Publicly available data from the Prostate Imaging: Cancer AI (PI-CAI) Challenge.</p>
+        <p>Publicly available data from the <a href="https://pi-cai.grand-challenge.org/" target="_blank" style="color:#1f4e79;font-weight:600;">Prostate Imaging: Cancer AI (PI-CAI) Challenge</a>.</p>
         <p>Anonymised records from 3 centres across 11 clinical sites, collected 2011–2021, patients aged 35–92 years.</p>
         </div>
         """,
@@ -286,7 +299,7 @@ st.markdown(
     Springer Nature Switzerland
 
     **DOI:**  
-    `10.1007/978-3-032-25035-3_5`
+    [10.1007/978-3-032-25035-3_5](https://doi.org/10.1007/978-3-032-25035-3_5)
     """
 )
 
