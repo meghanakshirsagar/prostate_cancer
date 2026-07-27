@@ -141,7 +141,7 @@ st.markdown(
 # Resource links — edit these URLs as needed
 DATASET_URL = "https://pi-cai.grand-challenge.org/"
 PUBLICATION_URL = "https://doi.org/10.1007/978-3-032-25035-3_5"
-GITHUB_URL = "https://github.com/your-username/prostate-cancer-risk-stratification"  # TODO: replace with the real repo
+GITHUB_URL = "https://github.com/meghanakshirsagar/prostate_cancer"  # TODO: replace with the real repo
 
 lc1, lc2, lc3 = st.columns(3)
 with lc1:
