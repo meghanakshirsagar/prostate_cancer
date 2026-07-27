@@ -33,30 +33,101 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
+# Global theme and typography (Google / Microsoft style sans-serif)
+# ---------------------------------------------------------
+
+st.markdown(
+    """
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+    :root {
+        --brand: #1f4e79;
+        --brand-dark: #163a5a;
+        --ink: #1e2430;
+        --muted: #5b6472;
+        --surface: #f5f7fa;
+        --border: #e3e8ef;
+    }
+
+    html, body, [class*="css"], .stApp, .stMarkdown, p, span, div,
+    label, button, input, select, textarea,
+    h1, h2, h3, h4, h5, h6 {
+        font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    }
+
+    .stApp { background-color: #ffffff; color: var(--ink); }
+
+    .block-container {
+        max-width: 1180px;
+        padding-top: 2.5rem;
+        padding-bottom: 4rem;
+    }
+
+    h1, h2, h3, h4 {
+        color: var(--ink) !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.01em;
+    }
+    h2 {
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.4rem;
+        margin-top: 2.2rem !important;
+    }
+    p, li { color: var(--muted); line-height: 1.65; }
+
+    /* Metric cards */
+    [data-testid="stMetric"] {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem 1.2rem;
+    }
+    [data-testid="stMetricLabel"] p { color: var(--muted) !important; font-weight: 500; }
+    [data-testid="stMetricValue"] { color: var(--brand) !important; font-weight: 700; }
+
+    /* Buttons */
+    .stButton > button {
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 0.55rem 1.1rem;
+        border: 1px solid var(--border);
+        transition: all 0.15s ease;
+    }
+    .stButton > button[kind="primary"] {
+        background: var(--brand);
+        border-color: var(--brand);
+    }
+    .stButton > button[kind="primary"]:hover {
+        background: var(--brand-dark);
+        border-color: var(--brand-dark);
+    }
+
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.25rem;
+        border-bottom: 1px solid var(--border);
+    }
+    .stTabs [data-baseweb="tab"] { font-weight: 500; padding: 0.5rem 1rem; }
+
+    [data-testid="stAlert"] { border-radius: 10px; }
+    [data-testid="stDataFrame"] { border: 1px solid var(--border); border-radius: 10px; }
+
+    #MainMenu, footer { visibility: hidden; }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# ---------------------------------------------------------
 # Landing page
 # ---------------------------------------------------------
 
 st.markdown(
     """
-    <div style="
-        padding: 2rem 2.2rem;
-        border-radius: 14px;
-        background-color: #f6f8fb;
-        border-left: 7px solid #315b7d;
-        margin-bottom: 1.5rem;
-    ">
-        <h1 style="margin-bottom: 0.5rem;">
-            Prostate Cancer Risk Stratification
-        </h1>
-
-        <p style="
-            font-size: 1.1rem;
-            color: #3f4854;
-            margin-bottom: 0;
-        ">
-            A web-based machine-learning platform for explainable and
-            fairness-aware assessment of clinically significant prostate cancer.
-        </p>
+    <div style="padding: 2.4rem 2.4rem; border-radius: 16px; background: linear-gradient(135deg, #1f4e79 0%, #2e7d9a 100%); box-shadow: 0 8px 24px rgba(31,78,121,0.18); margin-bottom: 1.8rem;">
+        <div style="font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #cfe0ee; margin-bottom: 0.6rem;">Clinical Machine Learning Research Platform</div>
+        <h1 style="margin: 0 0 0.6rem 0; color: #ffffff !important; font-size: 2.1rem; font-weight: 700;">Prostate Cancer Risk Stratification</h1>
+        <p style="font-size: 1.12rem; color: #eaf1f7 !important; margin: 0; max-width: 780px; line-height: 1.6;">A web-based machine-learning platform for explainable and fairness-aware assessment of clinically significant prostate cancer.</p>
     </div>
     """,
     unsafe_allow_html=True
