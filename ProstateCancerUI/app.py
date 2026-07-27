@@ -139,15 +139,15 @@ st.markdown(
 # Resource links — edit these URLs as needed
 DATASET_URL = "https://pi-cai.grand-challenge.org/"
 PUBLICATION_URL = "https://doi.org/10.1007/978-3-032-25035-3_5"
-GITHUB_URL = "https://github.com/your-username/prostate-cancer-risk-stratification"  # TODO: replace with the real repo
+GITHUB_URL = "https://github.com/meghanakshirsagar/prostate_cancer"  # TODO: replace with the real repo
 
 lc1, lc2, lc3 = st.columns(3)
 with lc1:
-    st.link_button("📊  PI-CAI dataset", DATASET_URL, use_container_width=True)
+    st.link_button("PI-CAI dataset (Click to open)", DATASET_URL, use_container_width=True)
 with lc2:
-    st.link_button("📄  Publication (DOI)", PUBLICATION_URL, use_container_width=True)
+    st.link_button("Publication (DOI) (Click to open)", PUBLICATION_URL, use_container_width=True)
 with lc3:
-    st.link_button("💻  GitHub repository", GITHUB_URL, use_container_width=True)
+    st.link_button("GitHub repository (Click to open)", GITHUB_URL, use_container_width=True)
 
 st.header("About the platform")
 
@@ -387,7 +387,7 @@ st.header("1. Dataset and Preprocessing")
 APP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = APP_DIR.parent
 
-DATA_PATH = REPO_ROOT / "dataset" / "YOUR_DATASET_FILENAME.csv"
+DATA_PATH = REPO_ROOT / "pi_cai_dataset.csv"
 
 try:
     df = pd.read_csv(DATA_PATH)
