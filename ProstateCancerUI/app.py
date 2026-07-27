@@ -18,20 +18,232 @@ from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer
 from sklearn.experimental import enable_iterative_imputer  # noqa
 from sklearn.linear_model import BayesianRidge
 from sklearn.preprocessing import LabelEncoder
+from pathlib import Path
 
+
+# ---------------------------------------------------------
 # Page configuration
+# ---------------------------------------------------------
+
 st.set_page_config(
-    page_title="Machine Learning Analysis Tool",
+    page_title="Prostate Cancer Risk Stratification",
     page_icon="⚕️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-# Custom header with icon
-st.markdown("""
-<div style="display: flex; align-items: center; margin-bottom: 1rem;">
-    <h1 style="margin: 0;">Machine Learning Analysis Tool</h1>
-</div>
-""", unsafe_allow_html=True)
+# ---------------------------------------------------------
+# Landing page
+# ---------------------------------------------------------
+
+st.markdown(
+    """
+    <div style="
+        padding: 2rem 2.2rem;
+        border-radius: 14px;
+        background-color: #f6f8fb;
+        border-left: 7px solid #315b7d;
+        margin-bottom: 1.5rem;
+    ">
+        <h1 style="margin-bottom: 0.5rem;">
+            Prostate Cancer Risk Stratification
+        </h1>
+
+        <p style="
+            font-size: 1.1rem;
+            color: #3f4854;
+            margin-bottom: 0;
+        ">
+            A web-based machine-learning platform for explainable and
+            fairness-aware assessment of clinically significant prostate cancer.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+st.header("About the platform")
+
+st.markdown(
+    """
+    This interactive research platform supports prostate cancer risk
+    stratification using structured clinical and diagnostic data.
+
+    It implements the end-to-end machine-learning workflow described in the
+    associated publication, including data preprocessing, missing-value
+    imputation, feature exploration, model training, performance evaluation,
+    explainability, fairness assessment, and calibration analysis.
+
+    The platform is designed to investigate the likelihood of
+    **clinically significant prostate cancer (csPCa)** using routinely available
+    patient characteristics and diagnostic variables.
+    """
+)
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("Patients", "1,422")
+col2.metric("Clinical centres", "3")
+col3.metric("Collection period", "2011–2021")
+col4.metric("Prediction task", "csPCa risk")
+
+st.info(
+    "This platform is intended for research and educational use only. "
+    "It is not a clinically validated diagnostic system and should not be "
+    "used to make decisions about individual patient care."
+)
+
+st.header("Dataset")
+
+st.markdown(
+    """
+    The study uses publicly available data from the
+    **Prostate Imaging: Cancer AI (PI-CAI) Challenge**.
+
+    The analysed cohort contains anonymised clinical, demographic, and
+    histopathological information from **1,422 male patients aged 35 to 92 years**.
+    Data were collected from three centres covering 11 clinical sites between
+    2011 and 2021.
+
+    The study cohort includes:
+
+    - **1,014 patients** with benign tissue or indolent prostate cancer;
+    - **408 patients** with clinically significant prostate cancer.
+
+    Clinically significant prostate cancer was confirmed using histopathology.
+
+    The structured variables used in the analysis include:
+
+    - patient age;
+    - prostate-specific antigen level;
+    - prostate volume;
+    - prostate-specific antigen density;
+    - Gleason score;
+    - ISUP grade; and
+    - histopathology-related variables.
+
+    The prediction task is formulated as a binary classification problem:
+    predicting the presence or absence of clinically significant prostate cancer.
+    """
+)
+
+st.header("Analytical workflow")
+
+workflow_col1, workflow_col2 = st.columns(2)
+
+with workflow_col1:
+    st.markdown(
+        """
+        #### Data preparation
+
+        The platform supports:
+
+        - missing-value analysis;
+        - mean, median, mode, KNN, Bayesian and MICE imputation;
+        - categorical-variable encoding;
+        - feature scaling and transformation;
+        - polynomial and interaction features; and
+        - optional SMOTE-based class balancing.
+        """
+    )
+
+with workflow_col2:
+    st.markdown(
+        """
+        #### Model assessment
+
+        The platform provides:
+
+        - logistic regression with regularisation;
+        - train-test splitting and cross-validation;
+        - ROC-AUC and confusion-matrix evaluation;
+        - SHAP-based feature interpretation;
+        - predictive-parity analysis across age groups; and
+        - probability-calibration assessment.
+        """
+    )
+
+st.header("Associated publication")
+
+st.markdown(
+    """
+    **Machine Learning for Prostate Cancer Risk Stratification:  
+    A Web-Based Tool with Explainability and Fairness**
+
+    **Authors:**  
+    Meghana Kshirsagar, Gauri Vaidya, Yuvraj Srivastava, and Conor Ryan
+
+    **Publication:**  
+    Proceedings of the International Conference on Agents and Artificial
+    Intelligence, Lecture Notes in Artificial Intelligence, Volume 16518,
+    pages 91–102.
+
+    **Publisher:**  
+    Springer Nature Switzerland
+
+    **DOI:**  
+    `10.1007/978-3-032-25035-3_5`
+    """
+)
+
+st.success(
+    "In the accompanying study, the strongest configuration achieved an "
+    "AUC of 0.85 using logistic regression with MICE imputation and no "
+    "oversampling."
+)
+
+st.header("Citation")
+
+st.markdown(
+    """
+    Please cite the following publication when referring to the methodology,
+    platform, or associated results.
+    """
+)
+
+bibtex = """@inproceedings{kshirsagar2027prostate,
+  title     = {Machine Learning for Prostate Cancer Risk Stratification:
+               A Web-Based Tool with Explainability and Fairness},
+  author    = {Kshirsagar, Meghana and Vaidya, Gauri and
+               Srivastava, Yuvraj and Ryan, Conor},
+  booktitle = {Proceedings of the International Conference on
+               Agents and Artificial Intelligence},
+  series    = {Lecture Notes in Artificial Intelligence},
+  volume    = {16518},
+  pages     = {91--102},
+  publisher = {Springer Nature Switzerland},
+  year      = {2027},
+  doi       = {10.1007/978-3-032-25035-3_5}
+}"""
+
+st.code(bibtex, language="bibtex")
+
+st.download_button(
+    label="Download BibTeX citation",
+    data=bibtex,
+    file_name="prostate_cancer_risk_stratification.bib",
+    mime="application/x-bibtex"
+)
+
+if "show_ml_platform" not in st.session_state:
+    st.session_state["show_ml_platform"] = False
+
+st.divider()
+
+left, centre, right = st.columns([1, 1.4, 1])
+
+with centre:
+    if st.button(
+        "Open the machine-learning analysis",
+        type="primary",
+        use_container_width=True
+    ):
+        st.session_state["show_ml_platform"] = True
+
+if not st.session_state["show_ml_platform"]:
+    st.stop()
+
+
 
 # Initialize session state for data persistence
 if 'df_imputed' not in st.session_state:
@@ -45,166 +257,188 @@ if 'target_variable' not in st.session_state:
 if 'pre_training_shap_done' not in st.session_state:
     st.session_state['pre_training_shap_done'] = False
 
-# File upload section
-st.header("1. Data Upload and Preprocessing")
-uploaded_file = st.file_uploader("Upload your dataset (CSV format only)", type="csv")
+# ---------------------------------------------------------
+# Load the study dataset automatically
+# ---------------------------------------------------------
 
-if uploaded_file is not None:
-    try:
-        df = pd.read_csv(uploaded_file)
-        st.write("Dataset Preview:")
-        st.dataframe(df.head(), hide_index=True)
+st.header("1. Dataset and Preprocessing")
 
-        # Only display simple data info
-        st.write(f"Loaded dataset with {df.shape[0]} rows and {df.shape[1]} columns.")
-        df_encoded, _ = preprocess_data(df, df)
-        
-        # Missing values analysis
-        missing_values = df.isnull().sum()
-        st.subheader("Missing Values Analysis")
-        
-        if missing_values.sum() > 0:
-            # Create a DataFrame to display missing values stats
-            missing_stats = pd.DataFrame({
-                'Column': missing_values.index,
-                'Missing Values': missing_values.values,
-                'Percentage (%)': (missing_values.values / len(df) * 100).round(2)
-            })
-            missing_stats = missing_stats[missing_stats['Missing Values'] > 0].sort_values(
-                by='Missing Values', ascending=False
-            ).reset_index(drop=True)
-            
-            st.write(missing_stats)
-                
-            # Column selection for imputation
-            columns_with_missing = missing_values[missing_values > 0].index.tolist()
-            
-            st.subheader("Select Columns for Imputation")
-            # Dropdown for categorical imputation
-            cat_impute_strategy = st.selectbox(
-                "Select categorical imputation method:",
-                options=["mean", "median", "mode"],
-                index=2 # default to 'mode'
-            )
+APP_DIR = Path(__file__).resolve().parent
+REPO_ROOT = APP_DIR.parent
 
-            # Dropdown for numerical imputation
-            num_impute_strategy = st.selectbox(
-                "Select numerical imputation method:",
-                options=["mean", "median", "mode", "knn", "bayesian_ridge", "mice"],
-                index=0  # default to 'mean'
-            )
-            if num_impute_strategy == "knn":
-                knn_neighbors = st.slider("KNN neighbors (if KNN selected):", 1, 10, 5)
-            else:
-                knn_neighbors = 5
+DATA_PATH = REPO_ROOT / "dataset" / "YOUR_DATASET_FILENAME.csv"
 
-            if st.button("Perform Imputation"):
-                with st.spinner('Performing imputation...'):
-                    # 1. Impute categorical columns
-                    categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
-                    cat_cols_with_na = [col for col in categorical_cols if df[col].isnull().any()]
+try:
+    df = pd.read_csv(DATA_PATH)
 
-                    if cat_cols_with_na:
-                        if cat_impute_strategy == 'mean':
-                            cat_imputer = SimpleImputer(strategy='mean')
-                        elif cat_impute_strategy == 'median':
-                            cat_imputer = SimpleImputer(strategy='median')
-                        else:  # 'mode'
-                            cat_imputer = SimpleImputer(strategy='most_frequent')
-                        df[cat_cols_with_na] = cat_imputer.fit_transform(df[cat_cols_with_na])
-                        st.write(f"Imputed categorical columns {cat_cols_with_na} using strategy: {cat_impute_strategy}")
-                    else:
-                        st.write("No missing values in categorical columns.")
+    st.success("The PI-CAI study dataset was loaded successfully.")
 
-                    # 2. Encode categorical columns automatically
-                    if categorical_cols:
-                        for col in categorical_cols:
-                            le = LabelEncoder()
-                            df[col] = le.fit_transform(df[col].astype(str))
-                        st.write(f"Encoded categorical columns: {categorical_cols}")
-                    else:
-                        st.write("No categorical columns to encode.")
+    st.subheader("Dataset overview")
 
-                    # 3. Impute numerical columns
-                    numerical_cols = df.select_dtypes(include=['number']).columns.tolist()
-                    num_cols_with_na = [col for col in numerical_cols if df[col].isnull().any()]
+    col1, col2, col3 = st.columns(3)
 
-                    if num_cols_with_na:
-                        if num_impute_strategy in ['mean', 'median', 'mode']:
-                            strategy = num_impute_strategy if num_impute_strategy != 'mode' else 'most_frequent'
-                            num_imputer = SimpleImputer(strategy=strategy)
-                            df[num_cols_with_na] = num_imputer.fit_transform(df[num_cols_with_na])
-                        elif num_impute_strategy == 'knn':
-                            num_imputer = KNNImputer(n_neighbors=knn_neighbors)
-                            df[num_cols_with_na] = num_imputer.fit_transform(df[num_cols_with_na])
-                        elif num_impute_strategy == 'bayesian_ridge':
-                            num_imputer = IterativeImputer(estimator=BayesianRidge(), random_state=42)
-                            df[num_cols_with_na] = num_imputer.fit_transform(df[num_cols_with_na])
-                        elif num_impute_strategy == 'mice':
-                            num_imputer = IterativeImputer(random_state=42)
-                            df[num_cols_with_na] = num_imputer.fit_transform(df[num_cols_with_na])
-                        else:
-                            st.error("Invalid numerical imputation strategy.")
-                        st.write(f"Imputed numerical columns {num_cols_with_na} using strategy: {num_impute_strategy}")
-                    else:
-                        st.write("No missing values in numerical columns.")
+    col1.metric("Records", f"{df.shape[0]:,}")
+    col2.metric("Variables", f"{df.shape[1]:,}")
+    col3.metric(
+        "Missing values",
+        f"{int(df.isna().sum().sum()):,}"
+    )
 
-                    df_imputed = perform_imputation(df, cat_cols_with_na, cat_impute_strategy)
-                    df_imputed = perform_imputation(df, num_cols_with_na, num_impute_strategy)
-                    st.session_state['df_imputed'] = df_imputed
-                    st.session_state['pre_training_shap_done'] = False  # Reset SHAP analysis flag
-                    st.success("Imputation completed successfully!")
+    with st.expander("View dataset preview"):
+        st.dataframe(
+            df.head(20),
+            use_container_width=True,
+            hide_index=True
+        )
 
-                    # Show comparison
-                    st.subheader("Imputation Results")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write("Original Data Sample")
-                        st.write(df.head())
-                    with col2:
-                        st.write("Imputed Data Sample")
-                        st.write(df_imputed.head())
-                        
-                    # Display statistics after imputation
-                    st.subheader("Statistics After Imputation")
-                    st.write(df_imputed.describe())
-                    
-                    # Add option to download imputed data
-                    st.subheader("Download Imputed Data")
-                    
-                    # Generate CSV for download
-                    csv = df_imputed.to_csv(index=False)
-                    
-                    # Create download button
-                    st.download_button(
-                        label="Download Imputed Data as CSV",
-                        data=csv,
-                        file_name="imputed_data.csv",
-                        mime="text/csv",
-                        help="Click to download the full dataset with imputed values"
-                    )
+    df_encoded, _ = preprocess_data(df, df)
+
+    # Missing values analysis
+    missing_values = df.isnull().sum()
+    st.subheader("Missing Values Analysis")
+
+    if missing_values.sum() > 0:
+        # Create a DataFrame to display missing values stats
+        missing_stats = pd.DataFrame({
+            'Column': missing_values.index,
+            'Missing Values': missing_values.values,
+            'Percentage (%)': (missing_values.values / len(df) * 100).round(2)
+        })
+        missing_stats = missing_stats[missing_stats['Missing Values'] > 0].sort_values(
+            by='Missing Values', ascending=False
+        ).reset_index(drop=True)
+
+        st.write(missing_stats)
+
+        # Column selection for imputation
+        columns_with_missing = missing_values[missing_values > 0].index.tolist()
+
+        st.subheader("Select Columns for Imputation")
+        # Dropdown for categorical imputation
+        cat_impute_strategy = st.selectbox(
+            "Select categorical imputation method:",
+            options=["mean", "median", "mode"],
+            index=2  # default to 'mode'
+        )
+
+        # Dropdown for numerical imputation
+        num_impute_strategy = st.selectbox(
+            "Select numerical imputation method:",
+            options=["mean", "median", "mode", "knn", "bayesian_ridge", "mice"],
+            index=0  # default to 'mean'
+        )
+        if num_impute_strategy == "knn":
+            knn_neighbors = st.slider("KNN neighbors (if KNN selected):", 1, 10, 5)
         else:
-            st.info("No missing values found in the dataset.")
-            st.session_state['df_imputed'] = df
-            st.session_state['pre_training_shap_done'] = False  # Reset SHAP analysis flag
-            # Add option to download data even if no imputation was needed
-            st.subheader("Download Data")
-            
-            # Generate CSV for download
-            csv = df.to_csv(index=False)
-            
-            # Create download button
-            st.download_button(
-                label="Download Data as CSV",
-                data=csv,
-                file_name="processed_data.csv",
-                mime="text/csv",
-                help="Click to download the dataset"
-            )
+            knn_neighbors = 5
 
-    except Exception as e:
-        st.error(f"Error loading dataset: {str(e)}")
-        st.info("Please ensure your CSV file is properly formatted.")
+        if st.button("Perform Imputation"):
+            with st.spinner('Performing imputation...'):
+                # 1. Impute categorical columns
+                categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+                cat_cols_with_na = [col for col in categorical_cols if df[col].isnull().any()]
+
+                if cat_cols_with_na:
+                    if cat_impute_strategy == 'mean':
+                        cat_imputer = SimpleImputer(strategy='mean')
+                    elif cat_impute_strategy == 'median':
+                        cat_imputer = SimpleImputer(strategy='median')
+                    else:  # 'mode'
+                        cat_imputer = SimpleImputer(strategy='most_frequent')
+                    df[cat_cols_with_na] = cat_imputer.fit_transform(df[cat_cols_with_na])
+                    st.write(f"Imputed categorical columns {cat_cols_with_na} using strategy: {cat_impute_strategy}")
+                else:
+                    st.write("No missing values in categorical columns.")
+
+                # 2. Encode categorical columns automatically
+                if categorical_cols:
+                    for col in categorical_cols:
+                        le = LabelEncoder()
+                        df[col] = le.fit_transform(df[col].astype(str))
+                    st.write(f"Encoded categorical columns: {categorical_cols}")
+                else:
+                    st.write("No categorical columns to encode.")
+
+                # 3. Impute numerical columns
+                numerical_cols = df.select_dtypes(include=['number']).columns.tolist()
+                num_cols_with_na = [col for col in numerical_cols if df[col].isnull().any()]
+
+                if num_cols_with_na:
+                    if num_impute_strategy in ['mean', 'median', 'mode']:
+                        strategy = num_impute_strategy if num_impute_strategy != 'mode' else 'most_frequent'
+                        num_imputer = SimpleImputer(strategy=strategy)
+                        df[num_cols_with_na] = num_imputer.fit_transform(df[num_cols_with_na])
+                    elif num_impute_strategy == 'knn':
+                        num_imputer = KNNImputer(n_neighbors=knn_neighbors)
+                        df[num_cols_with_na] = num_imputer.fit_transform(df[num_cols_with_na])
+                    elif num_impute_strategy == 'bayesian_ridge':
+                        num_imputer = IterativeImputer(estimator=BayesianRidge(), random_state=42)
+                        df[num_cols_with_na] = num_imputer.fit_transform(df[num_cols_with_na])
+                    elif num_impute_strategy == 'mice':
+                        num_imputer = IterativeImputer(random_state=42)
+                        df[num_cols_with_na] = num_imputer.fit_transform(df[num_cols_with_na])
+                    else:
+                        st.error("Invalid numerical imputation strategy.")
+                    st.write(f"Imputed numerical columns {num_cols_with_na} using strategy: {num_impute_strategy}")
+                else:
+                    st.write("No missing values in numerical columns.")
+
+                df_imputed = perform_imputation(df, cat_cols_with_na, cat_impute_strategy)
+                df_imputed = perform_imputation(df, num_cols_with_na, num_impute_strategy)
+                st.session_state['df_imputed'] = df_imputed
+                st.session_state['pre_training_shap_done'] = False  # Reset SHAP analysis flag
+                st.success("Imputation completed successfully!")
+
+                # Show comparison
+                st.subheader("Imputation Results")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write("Original Data Sample")
+                    st.write(df.head())
+                with col2:
+                    st.write("Imputed Data Sample")
+                    st.write(df_imputed.head())
+
+                # Display statistics after imputation
+                st.subheader("Statistics After Imputation")
+                st.write(df_imputed.describe())
+
+                # Add option to download imputed data
+                st.subheader("Download Imputed Data")
+
+                # Generate CSV for download
+                csv = df_imputed.to_csv(index=False)
+
+                # Create download button
+                st.download_button(
+                    label="Download Imputed Data as CSV",
+                    data=csv,
+                    file_name="imputed_data.csv",
+                    mime="text/csv",
+                    help="Click to download the full dataset with imputed values"
+                )
+    else:
+        st.info("No missing values found in the dataset.")
+        st.session_state['df_imputed'] = df
+        st.session_state['pre_training_shap_done'] = False  # Reset SHAP analysis flag
+        # Add option to download data even if no imputation was needed
+        st.subheader("Download Data")
+
+        # Generate CSV for download
+        csv = df.to_csv(index=False)
+
+        # Create download button
+        st.download_button(
+            label="Download Data as CSV",
+            data=csv,
+            file_name="processed_data.csv",
+            mime="text/csv",
+            help="Click to download the dataset"
+        )
+
+except Exception as e:
+    st.error(f"Error loading dataset: {str(e)}")
+    st.info("Please ensure the study dataset exists at the expected path and is properly formatted.")
 
 # Continue with the rest of the analysis if data is available
 if st.session_state['df_imputed'] is not None:
@@ -643,8 +877,3 @@ if st.session_state['df_imputed'] is not None:
                         st.error(f"Error in calibration analysis: {str(e)}")
                 else:
                     st.info("Calibration analysis is currently only available for classification models")
-            
-
-
-else:
-    st.info("Please upload a dataset to begin analysis.")
