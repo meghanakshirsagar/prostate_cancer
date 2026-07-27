@@ -87,6 +87,10 @@ st.markdown(
     .info-card p, .info-card li { color: #26303c !important; font-size: 0.95rem; margin-bottom: 0.4rem; }
     .info-card ul { padding-left: 1.1rem; margin: 0; }
     .accent-bar { border-left: 4px solid var(--brand); }
+    /* Hero text — must override the global h1/p colours */
+    .hero-eyebrow { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #cfe0ee !important; margin-bottom: 0.6rem; }
+    .hero-title { margin: 0 0 0.6rem 0 !important; color: #ffffff !important; font-size: 2.1rem; font-weight: 700; }
+    .hero-sub { font-size: 1.12rem; color: #eaf1f7 !important; margin: 0; max-width: 780px; line-height: 1.6; }
     /* Metric cards */
     [data-testid="stMetric"] {
         background: var(--surface);
@@ -124,9 +128,9 @@ st.markdown(
 st.markdown(
     """
     <div style="padding: 2.4rem 2.4rem; border-radius: 16px; background: linear-gradient(135deg, #1f4e79 0%, #2e7d9a 100%); box-shadow: 0 8px 24px rgba(31,78,121,0.18); margin-bottom: 1.8rem;">
-        <div style="font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #cfe0ee; margin-bottom: 0.6rem;">Clinical Machine Learning Research Platform</div>
-        <h1 style="margin: 0 0 0.6rem 0; color: #ffffff !important; font-size: 2.1rem; font-weight: 700;">Prostate Cancer Risk Stratification</h1>
-        <p style="font-size: 1.12rem; color: #eaf1f7 !important; margin: 0; max-width: 780px; line-height: 1.6;">A web-based machine-learning platform for explainable and fairness-aware assessment of clinically significant prostate cancer.</p>
+        <div class="hero-eyebrow">Clinical Machine Learning Research Platform</div>
+        <h1 class="hero-title">Prostate Cancer Risk Stratification</h1>
+        <p class="hero-sub">A web-based machine-learning platform for explainable and fairness-aware assessment of clinically significant prostate cancer.</p>
     </div>
     """,
     unsafe_allow_html=True
