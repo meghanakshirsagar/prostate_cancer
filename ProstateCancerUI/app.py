@@ -192,12 +192,6 @@ col2.metric("Clinical centres", "3")
 col3.metric("Collection period", "2011–2021")
 col4.metric("Prediction task", "csPCa risk")
 
-st.info(
-    "This platform is intended for research and educational use only. "
-    "It is not a clinically validated diagnostic system and should not be "
-    "used to make decisions about individual patient care."
-)
-
 st.header("Dataset")
 
 dc1, dc2, dc3 = st.columns(3)
@@ -387,7 +381,7 @@ st.header("1. Dataset and Preprocessing")
 APP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = APP_DIR.parent
 
-DATA_PATH = REPO_ROOT / "pi_cai_dataset.csv"
+DATA_PATH = "pi_cai_dataset.csv"
 
 try:
     df = pd.read_csv(DATA_PATH)
