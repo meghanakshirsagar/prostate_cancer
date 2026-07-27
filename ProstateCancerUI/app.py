@@ -48,21 +48,17 @@ st.markdown(
         --surface: #f5f7fa;
         --border: #e3e8ef;
     }
-
     html, body, [class*="css"], .stApp, .stMarkdown, p, span, div,
     label, button, input, select, textarea,
     h1, h2, h3, h4, h5, h6 {
         font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
     }
-
     .stApp { background-color: #ffffff; color: var(--ink); }
-
     .block-container {
         max-width: 1180px;
         padding-top: 2.5rem;
         padding-bottom: 4rem;
     }
-
     h1, h2, h3, h4 {
         color: var(--ink) !important;
         font-weight: 600 !important;
@@ -74,7 +70,23 @@ st.markdown(
         margin-top: 2.2rem !important;
     }
     p, li { color: var(--muted); line-height: 1.65; }
-
+    /* Info card used across the landing page */
+    .info-card {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.4rem 1.6rem;
+        box-shadow: 0 2px 10px rgba(30,36,48,0.04);
+        height: 100%;
+    }
+    .info-card h4 {
+        margin: 0 0 0.6rem 0 !important;
+        color: var(--brand) !important;
+        font-size: 1.05rem;
+    }
+    .info-card p, .info-card li { color: var(--muted); font-size: 0.95rem; margin-bottom: 0.4rem; }
+    .info-card ul { padding-left: 1.1rem; margin: 0; }
+    .accent-bar { border-left: 4px solid var(--brand); }
     /* Metric cards */
     [data-testid="stMetric"] {
         background: var(--surface);
@@ -84,7 +96,6 @@ st.markdown(
     }
     [data-testid="stMetricLabel"] p { color: var(--muted) !important; font-weight: 500; }
     [data-testid="stMetricValue"] { color: var(--brand) !important; font-weight: 700; }
-
     /* Buttons */
     .stButton > button {
         border-radius: 10px;
@@ -93,25 +104,13 @@ st.markdown(
         border: 1px solid var(--border);
         transition: all 0.15s ease;
     }
-    .stButton > button[kind="primary"] {
-        background: var(--brand);
-        border-color: var(--brand);
-    }
-    .stButton > button[kind="primary"]:hover {
-        background: var(--brand-dark);
-        border-color: var(--brand-dark);
-    }
-
+    .stButton > button[kind="primary"] { background: var(--brand); border-color: var(--brand); }
+    .stButton > button[kind="primary"]:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
     /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 0.25rem;
-        border-bottom: 1px solid var(--border);
-    }
+    .stTabs [data-baseweb="tab-list"] { gap: 0.25rem; border-bottom: 1px solid var(--border); }
     .stTabs [data-baseweb="tab"] { font-weight: 500; padding: 0.5rem 1rem; }
-
     [data-testid="stAlert"] { border-radius: 10px; }
     [data-testid="stDataFrame"] { border: 1px solid var(--border); border-radius: 10px; }
-
     #MainMenu, footer { visibility: hidden; }
     </style>
     """,
@@ -135,21 +134,39 @@ st.markdown(
 
 st.header("About the platform")
 
-st.markdown(
-    """
-    This interactive research platform supports prostate cancer risk
-    stratification using structured clinical and diagnostic data.
+ac1, ac2, ac3 = st.columns(3)
+with ac1:
+    st.markdown(
+        """
+        <div class="info-card accent-bar">
+        <h4>What it does</h4>
+        <p>Supports prostate cancer risk stratification using structured clinical and diagnostic data drawn from routine patient records.</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+with ac2:
+    st.markdown(
+        """
+        <div class="info-card accent-bar">
+        <h4>End-to-end workflow</h4>
+        <p>Covers preprocessing, missing-value imputation, feature exploration, model training, evaluation, explainability, fairness, and calibration.</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+with ac3:
+    st.markdown(
+        """
+        <div class="info-card accent-bar">
+        <h4>Clinical focus</h4>
+        <p>Investigates the likelihood of clinically significant prostate cancer (csPCa) from routinely available patient characteristics.</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-    It implements the end-to-end machine-learning workflow described in the
-    associated publication, including data preprocessing, missing-value
-    imputation, feature exploration, model training, performance evaluation,
-    explainability, fairness assessment, and calibration analysis.
-
-    The platform is designed to investigate the likelihood of
-    **clinically significant prostate cancer (csPCa)** using routinely available
-    patient characteristics and diagnostic variables.
-    """
-)
+st.write("")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -166,36 +183,52 @@ st.info(
 
 st.header("Dataset")
 
-st.markdown(
-    """
-    The study uses publicly available data from the
-    **Prostate Imaging: Cancer AI (PI-CAI) Challenge**.
+dc1, dc2, dc3 = st.columns(3)
+with dc1:
+    st.markdown(
+        """
+        <div class="info-card">
+        <h4>Source</h4>
+        <p>Publicly available data from the Prostate Imaging: Cancer AI (PI-CAI) Challenge.</p>
+        <p>Anonymised records from 3 centres across 11 clinical sites, collected 2011–2021, patients aged 35–92 years.</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+with dc2:
+    st.markdown(
+        """
+        <div class="info-card">
+        <h4>Cohort composition</h4>
+        <ul>
+        <li>1,014 patients with benign tissue or indolent cancer</li>
+        <li>408 patients with clinically significant cancer</li>
+        </ul>
+        <p style="margin-top:0.6rem;">csPCa was confirmed using histopathology.</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+with dc3:
+    st.markdown(
+        """
+        <div class="info-card">
+        <h4>Structured variables</h4>
+        <ul>
+        <li>Patient age</li>
+        <li>PSA level and PSA density</li>
+        <li>Prostate volume</li>
+        <li>Gleason score and ISUP grade</li>
+        <li>Histopathology variables</li>
+        </ul>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-    The analysed cohort contains anonymised clinical, demographic, and
-    histopathological information from **1,422 male patients aged 35 to 92 years**.
-    Data were collected from three centres covering 11 clinical sites between
-    2011 and 2021.
-
-    The study cohort includes:
-
-    - **1,014 patients** with benign tissue or indolent prostate cancer;
-    - **408 patients** with clinically significant prostate cancer.
-
-    Clinically significant prostate cancer was confirmed using histopathology.
-
-    The structured variables used in the analysis include:
-
-    - patient age;
-    - prostate-specific antigen level;
-    - prostate volume;
-    - prostate-specific antigen density;
-    - Gleason score;
-    - ISUP grade; and
-    - histopathology-related variables.
-
-    The prediction task is formulated as a binary classification problem:
-    predicting the presence or absence of clinically significant prostate cancer.
-    """
+st.caption(
+    "The prediction task is a binary classification problem: predicting the "
+    "presence or absence of clinically significant prostate cancer."
 )
 
 st.header("Analytical workflow")
