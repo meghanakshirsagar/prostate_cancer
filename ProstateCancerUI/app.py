@@ -74,8 +74,50 @@ st.markdown(
         border-radius: 14px;
         padding: 1.4rem 1.6rem;
         box-shadow: 0 2px 10px rgba(30,36,48,0.04);
-        min-height: 230px;
-        height: 100%;
+        height: 260px;
+        min-height: 260px;
+        max-height: 260px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        box-sizing: border-box;
+    }
+    .publication-card {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.35rem 1.5rem;
+        box-shadow: 0 2px 10px rgba(30,36,48,0.04);
+        height: 370px;
+        min-height: 370px;
+        max-height: 370px;
+        overflow-y: auto;
+        box-sizing: border-box;
+    }
+    .publication-card h5 {
+        color: var(--brand) !important;
+        font-size: 1.02rem;
+        line-height: 1.35;
+        margin: 0 0 0.8rem 0 !important;
+    }
+    .publication-card p {
+        color: #26303c !important;
+        font-size: 0.94rem;
+        line-height: 1.55;
+        margin: 0 0 0.65rem 0;
+    }
+    .method-guide {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.9rem 1rem;
+        margin: 0.5rem 0 1rem;
+    }
+    .method-guide p, .method-guide li {
+        color: #26303c !important;
+        font-size: 0.93rem;
+        line-height: 1.55;
     }
     .info-card h4 {
         margin: 0 0 0.7rem 0 !important;
@@ -278,71 +320,8 @@ with workflow_col2:
     )
 
 # ---------------------------------------------------------
-# Associated publications  — Study 1 + Study 2
+# Associated publications and citations
 # ---------------------------------------------------------
-
-st.header("Associated publications")
-
-st.markdown("This platform is the companion tool to two related studies.")
-
-pub_col1, pub_col2 = st.columns(2)
-
-with pub_col1:
-    st.markdown(
-        """
-        ##### Study 1 — Responsible AI & Bias Mitigation
-
-        **Mitigating Algorithmic Bias in Prostate Cancer Risk Stratification
-        with Responsible Artificial Intelligence and Machine Learning**
-
-        **Authors:**  
-        Meghana Kshirsagar, Mihir Sontakke, Gauri Vaidya, Ahmad Alkhan,
-        Aideen Killeen, and Conor Ryan
-
-        **Venue:**  
-        17th International Conference on Agents and Artificial Intelligence
-        (ICAART 2025), Volume 3, pages 1085–1092
-
-        **DOI:**  
-        [10.5220/0013262600003890](https://doi.org/10.5220/0013262600003890)
-        """
-    )
-
-with pub_col2:
-    st.markdown(
-        """
-        ##### Study 2 — Web-Based Tool with Explainability and Fairness
-
-        **Machine Learning for Prostate Cancer Risk Stratification:
-        A Web-Based Tool with Explainability and Fairness**
-
-        **Authors:**  
-        Meghana Kshirsagar, Gauri Vaidya, Yuvraj Srivastava, and Conor Ryan
-
-        **Venue:**  
-        Proceedings of the International Conference on Agents and Artificial
-        Intelligence, Lecture Notes in Artificial Intelligence, Volume 16518,
-        pages 91–102
-
-        **Publisher:** Springer Nature Switzerland
-
-        **DOI:**  
-        [10.1007/978-3-032-25035-3_5](https://doi.org/10.1007/978-3-032-25035-3_5)
-        """
-    )
-
-st.success(
-    "In the accompanying studies, the strongest tabular configuration achieved an "
-    "AUC of 0.85 using logistic regression with MICE imputation and no oversampling "
-    "(Study 2). The image triage approach using ResNet50 achieved 60% test accuracy "
-    "for csPCa detection (Study 1)."
-)
-
-st.header("Citation")
-
-st.markdown(
-    "Please cite both publications when referring to the methodology, platform, or associated results."
-)
 
 bibtex_study1 = """@inproceedings{kshirsagar2025mitigating,
   title     = {Mitigating Algorithmic Bias in Prostate Cancer Risk Stratification
@@ -367,27 +346,82 @@ bibtex_study2 = """@inproceedings{kshirsagar2027prostate,
   series    = {Lecture Notes in Artificial Intelligence},
   volume    = {16518},
   pages     = {91--102},
-  publisher = {Springer Nature Switzerland},
   year      = {2027},
   doi       = {10.1007/978-3-032-25035-3_5}
 }"""
 
-st.markdown("**Study 1 — BibTeX**")
-st.code(bibtex_study1, language="bibtex")
-st.download_button(
-    label="Download Study 1 BibTeX",
-    data=bibtex_study1,
-    file_name="kshirsagar2025_mitigating_bias.bib",
-    mime="application/x-bibtex"
-)
+st.header("Associated publications")
+st.markdown("This platform accompanies two related studies on responsible and explainable machine learning for prostate cancer risk stratification.")
 
-st.markdown("**Study 2 — BibTeX**")
-st.code(bibtex_study2, language="bibtex")
-st.download_button(
-    label="Download Study 2 BibTeX",
-    data=bibtex_study2,
-    file_name="kshirsagar2027_prostate_risk.bib",
-    mime="application/x-bibtex"
+pub_col1, pub_col2 = st.columns(2)
+
+with pub_col1:
+    st.markdown(
+        """
+        <div class="publication-card">
+          <h5>Study 1: Responsible AI and bias mitigation</h5>
+          <p><strong>Mitigating Algorithmic Bias in Prostate Cancer Risk Stratification with Responsible Artificial Intelligence and Machine Learning</strong></p>
+          <p><strong>Authors:</strong><br>
+          Meghana Kshirsagar, Mihir Sontakke, Gauri Vaidya, Ahmad Alkhan, Aideen Killeen, and Conor Ryan</p>
+          <p><strong>Venue:</strong><br>
+          17th International Conference on Agents and Artificial Intelligence (ICAART 2025), Volume 3, pages 1085-1092</p>
+          <p><strong>DOI:</strong><br>
+          <a href="https://doi.org/10.5220/0013262600003890" target="_blank">10.5220/0013262600003890</a></p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with pub_col2:
+    st.markdown(
+        """
+        <div class="publication-card">
+          <h5>Study 2: Explainability and fairness</h5>
+          <p><strong>Machine Learning for Prostate Cancer Risk Stratification: A Web-Based Tool with Explainability and Fairness</strong></p>
+          <p><strong>Authors:</strong><br>
+          Meghana Kshirsagar, Gauri Vaidya, Yuvraj Srivastava, and Conor Ryan</p>
+          <p><strong>Venue:</strong><br>
+          Proceedings of the International Conference on Agents and Artificial Intelligence, Lecture Notes in Artificial Intelligence, Volume 16518, pages 91-102</p>
+          <p><strong>DOI:</strong><br>
+          <a href="https://doi.org/10.1007/978-3-032-25035-3_5" target="_blank">10.1007/978-3-032-25035-3_5</a></p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+# BibTeX entries are placed directly below the corresponding publications.
+bib_col1, bib_col2 = st.columns(2)
+with bib_col1:
+    with st.expander("View Study 1 BibTeX", expanded=False):
+        st.code(bibtex_study1, language="bibtex")
+        st.download_button(
+            label="Download Study 1 BibTeX",
+            data=bibtex_study1,
+            file_name="kshirsagar2025_mitigating_bias.bib",
+            mime="application/x-bibtex",
+            key="download_bibtex_study1",
+            use_container_width=True,
+        )
+
+with bib_col2:
+    with st.expander("View Study 2 BibTeX", expanded=False):
+        st.code(bibtex_study2, language="bibtex")
+        st.download_button(
+            label="Download Study 2 BibTeX",
+            data=bibtex_study2,
+            file_name="kshirsagar2027_prostate_risk.bib",
+            mime="application/x-bibtex",
+            key="download_bibtex_study2",
+            use_container_width=True,
+        )
+
+st.caption("Please cite both publications when referring to the platform, methodology, or associated results.")
+
+st.success(
+    "In the accompanying studies, the strongest tabular configuration achieved an "
+    "AUC of 0.85 using logistic regression with MICE imputation and no oversampling "
+    "in Study 2. The image triage approach using ResNet50 achieved 60% test accuracy "
+    "for csPCa detection in Study 1."
 )
 
 if "show_ml_platform" not in st.session_state:
@@ -469,30 +503,55 @@ try:
 
         st.subheader("Select Columns for Imputation")
 
-        # --- Categorical imputation ---
+        # Categorical imputation
         st.markdown(
-            "**Categorical imputation** — missing categorical values are completed using a selected statistical strategy before numerical encoding, thereby maintaining a consistent representation of categorical variables throughout the preprocessing pipeline."
+            "**Categorical imputation** completes missing categorical observations before numerical encoding, ensuring that categories are represented consistently throughout the preprocessing pipeline."
         )
+        with st.expander("About the categorical imputation methods", expanded=False):
+            st.markdown(
+                """
+                <div class="method-guide">
+                <p><strong>Mean:</strong> Converts categories to numerical codes and replaces missing values with the arithmetic mean of the observed codes. This approach is generally less interpretable for nominal categories and should be used cautiously.</p>
+                <p><strong>Median:</strong> Replaces missing encoded values with the median code. It is less sensitive to extreme numerical codes than the mean, but it still assumes an ordered numerical representation.</p>
+                <p><strong>Mode:</strong> Replaces each missing value with the most frequently observed category. This is the recommended option for nominal categorical variables because it preserves valid category membership.</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         cat_impute_strategy = st.selectbox(
             "Select categorical imputation method:",
             options=["mean", "median", "mode"],
-            index=2
+            index=2,
         )
 
-        # --- Numerical imputation ---
+        # Numerical imputation
         st.markdown(
-            "**Numerical imputation** — continuous variables may be imputed using summary-statistic or model-based approaches. The available methods include mean, median, mode, k-nearest neighbours, Bayesian Ridge regression, and Multiple Imputation by Chained Equations (MICE), enabling comparison of increasingly flexible strategies for handling incomplete data."
+            "**Numerical imputation** estimates missing continuous values using either summary statistics or multivariable model-based methods."
         )
+        with st.expander("About the numerical imputation methods", expanded=False):
+            st.markdown(
+                """
+                <div class="method-guide">
+                <p><strong>Mean:</strong> Replaces missing values with the arithmetic average of the observed values in the same variable. It is simple and efficient but may be influenced by outliers and can reduce variance.</p>
+                <p><strong>Median:</strong> Replaces missing values with the middle observed value. It is more robust than the mean when a variable is skewed or contains extreme observations.</p>
+                <p><strong>Mode:</strong> Replaces missing values with the most frequently occurring value. It is most appropriate for discrete or highly repeated numerical variables.</p>
+                <p><strong>k-nearest neighbours:</strong> Estimates each missing value from the corresponding values of the most similar observations. Similarity is calculated using the available features.</p>
+                <p><strong>Bayesian Ridge:</strong> Uses iterative Bayesian linear regression to predict incomplete variables from the remaining variables while incorporating regularisation and uncertainty.</p>
+                <p><strong>MICE:</strong> Multiple Imputation by Chained Equations iteratively models each incomplete variable conditional on the others. It preserves multivariable relationships more effectively than single-value imputation and was used in the companion tabular study.</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         num_impute_strategy = st.selectbox(
             "Select numerical imputation method:",
             options=["mean", "median", "mode", "knn", "bayesian_ridge", "mice"],
-            index=0
+            index=0,
         )
         if num_impute_strategy == "knn":
             st.markdown(
-                "**Number of neighbours** — specifies the number of nearest observations used to estimate each missing value. Larger values generally produce smoother estimates, whereas smaller values retain greater local sensitivity."
+                "The number of neighbours controls how many similar observations contribute to each estimate. Smaller values retain local variation, while larger values generally produce smoother estimates."
             )
-            knn_neighbors = st.slider("KNN neighbors (if KNN selected):", 1, 10, 5)
+            knn_neighbors = st.slider("KNN neighbours:", 1, 10, 5)
         else:
             knn_neighbors = 5
 
@@ -599,7 +658,7 @@ if st.session_state['df_imputed'] is not None:
     # ---------------------------------------------------------
     st.header("2. Correlation Analysis and Automatic Feature Selection")
 
-    # Fixed target variable — no user selection needed
+    # Fixed target variable: no user selection needed
     DEFAULT_TARGET = "case_csPCa"
     if DEFAULT_TARGET in df_imputed.columns:
         target_variable = DEFAULT_TARGET
@@ -727,8 +786,22 @@ if st.session_state['df_imputed'] is not None:
         # Feature transformation
         st.subheader("Feature Transformation (Optional)")
         st.markdown(
-            "Optional feature transformations are available to improve numerical stability, reduce sensitivity to outliers, and accommodate heterogeneous predictor distributions. Supported methods include standardisation, min-max scaling, robust scaling, Yeo-Johnson transformation, and quantile transformation."
+            "Optional feature transformations can improve numerical stability, reduce sensitivity to extreme observations, and place predictors on comparable scales."
         )
+        with st.expander("About the feature transformation methods", expanded=False):
+            st.markdown(
+                """
+                <div class="method-guide">
+                <p><strong>None:</strong> Retains the original feature values without transformation.</p>
+                <p><strong>Standard scaling:</strong> Centres each variable at zero and scales it to unit variance. This is useful when predictors have substantially different units or ranges.</p>
+                <p><strong>Min-max scaling:</strong> Linearly rescales each variable to the interval from 0 to 1 while preserving its relative ordering.</p>
+                <p><strong>Robust scaling:</strong> Centres variables using the median and scales them using the interquartile range, reducing the influence of outliers.</p>
+                <p><strong>Yeo-Johnson transformation:</strong> Applies a power transformation designed to reduce skewness and stabilise variance. It can accommodate zero, positive, and negative values.</p>
+                <p><strong>Quantile transformation:</strong> Maps the empirical distribution of each variable to a uniform or Gaussian distribution, reducing the influence of extreme values and nonlinear marginal distributions.</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         transform_type = st.selectbox(
             "Select feature transformation:",
             options=["none", "standard", "minmax", "robust", "yeo-johnson", "quantile"],
@@ -744,8 +817,20 @@ if st.session_state['df_imputed'] is not None:
         # Polynomial features
         st.subheader("Polynomial Features (Optional)")
         st.markdown(
-            "Polynomial expansion generates higher-order and interaction terms, enabling linear models to represent nonlinear relationships between predictors. Interaction-only expansion provides a more parsimonious alternative by retaining cross-product terms while excluding polynomial powers."
+            "Polynomial expansion enables a linear model to represent selected nonlinear and joint relationships between predictors."
         )
+        with st.expander("About polynomial and interaction features", expanded=False):
+            st.markdown(
+                """
+                <div class="method-guide">
+                <p><strong>Polynomial terms:</strong> Add powers of individual predictors, such as a squared or cubic term, to represent nonlinear relationships with the outcome.</p>
+                <p><strong>Interaction terms:</strong> Add products of two or more predictors to represent situations in which the association of one feature depends on another feature.</p>
+                <p><strong>Polynomial degree:</strong> Determines the highest order of generated terms. Higher degrees increase model flexibility but also increase dimensionality and the risk of overfitting.</p>
+                <p><strong>Interaction only:</strong> Generates cross-product terms without adding powers of individual variables, providing a more parsimonious feature expansion.</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         create_poly = st.checkbox("Create polynomial features", help="Generate polynomial and interaction features")
 
         if create_poly:
@@ -784,8 +869,18 @@ if st.session_state['df_imputed'] is not None:
         # Model selection
         st.subheader("Model Selection and Training")
         st.markdown(
-            "The platform implements regularised Logistic Regression for binary classification and LASSO Regression for continuous outcomes. Logistic Regression provides an interpretable framework for estimating the probability of clinically significant prostate cancer, whereas LASSO applies L1 regularisation to support coefficient shrinkage and embedded feature selection."
+            "The available models provide interpretable baselines for classification and regression using structured clinical data."
         )
+        with st.expander("About the modelling techniques", expanded=False):
+            st.markdown(
+                """
+                <div class="method-guide">
+                <p><strong>Logistic Regression:</strong> Estimates the probability of a binary outcome by modelling the log-odds as a linear combination of predictors. Its coefficients are interpretable, training is computationally efficient, and predicted probabilities can be evaluated for calibration.</p>
+                <p><strong>LASSO Regression:</strong> Applies an L1 penalty to a linear regression model. The penalty shrinks less informative coefficients towards zero, allowing regularisation and embedded feature selection to occur simultaneously.</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         if is_classification:
             model_options = ["Logistic Regression"]
@@ -799,13 +894,13 @@ if st.session_state['df_imputed'] is not None:
         )
 
         st.markdown(
-            "**Cross-validation folds** — internal validation is performed using k-fold cross-validation. The training data are iteratively partitioned into development and validation folds, providing a more stable estimate of model performance than a single validation split."
+            "Internal validation is performed using k-fold cross-validation. The training data are partitioned into k subsets, with each subset used once for validation while the remaining subsets are used for model fitting. The number of folds controls the balance between computational cost and the stability of the validation estimate."
         )
         cv_folds = st.slider("Cross-validation folds:", 3, 10, 5)
 
         if selected_model == "LASSO Regression":
             st.markdown(
-                "**Alpha** controls the strength of L1 regularisation. Larger values impose greater coefficient shrinkage, while automatic selection identifies the value that optimises cross-validated model performance."
+                "Alpha controls the strength of L1 regularisation. A larger value applies stronger coefficient shrinkage and may set more coefficients to zero. Automatic selection uses cross-validation to identify the value associated with the best validation performance."
             )
             auto_alpha = st.checkbox("Auto-select alpha (recommended)", value=True)
             if not auto_alpha:
@@ -843,7 +938,7 @@ if st.session_state['df_imputed'] is not None:
                     if selected_model == "Logistic Regression":
                         st.info(
                             "ℹ️ SMOTE (Synthetic Minority Oversampling Technique) was automatically applied "
-                            "to balance the training classes by generating synthetic minority-class samples — "
+                            "to balance the training classes by generating synthetic minority-class samples: "
                             "mitigating bias toward the more frequent non-csPCa class, consistent with Study 1."
                         )
 
