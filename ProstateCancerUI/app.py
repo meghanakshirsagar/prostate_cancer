@@ -246,13 +246,15 @@ with workflow_col1:
         """
         #### Data preparation
 
-        The platform supports:
+        The analytical pipeline provides a structured preprocessing workflow for clinical tabular data. It supports systematic evaluation of missingness, multiple imputation strategies, categorical encoding, feature transformation, nonlinear feature engineering, and optional class balancing before model development.
 
-        - missing-value analysis;
-        - mean, median, mode, KNN, Bayesian and MICE imputation;
+        Available procedures include:
+
+        - missing-data assessment;
+        - mean, median, mode, k-nearest neighbour (kNN), Bayesian Ridge, and MICE imputation;
         - categorical-variable encoding;
-        - feature scaling and transformation;
-        - polynomial and interaction features; and
+        - feature scaling and distributional transformation;
+        - polynomial and interaction-feature generation; and
         - optional SMOTE-based class balancing.
         """
     )
@@ -260,16 +262,18 @@ with workflow_col1:
 with workflow_col2:
     st.markdown(
         """
-        #### Model assessment
+        #### Model development and evaluation
 
-        The platform provides:
+        The platform implements a complete supervised machine-learning workflow encompassing model training, internal validation, explainability, fairness assessment, and calibration analysis. These components support transparent evaluation of predictive performance and responsible use of machine-learning models in healthcare research.
 
-        - logistic regression with regularisation;
-        - train-test splitting and cross-validation;
-        - ROC-AUC and confusion-matrix evaluation;
-        - SHAP-based feature interpretation;
-        - predictive-parity analysis across age groups; and
-        - probability-calibration assessment.
+        Implemented analyses include:
+
+        - regularised logistic regression;
+        - hold-out evaluation and k-fold cross-validation;
+        - ROC-AUC and confusion-matrix analysis;
+        - SHAP-based model interpretation;
+        - predictive-parity assessment across age groups; and
+        - probability-calibration analysis.
         """
     )
 
@@ -467,8 +471,7 @@ try:
 
         # --- Categorical imputation ---
         st.markdown(
-            "**Categorical imputation method** — how to fill missing values in text/category columns "
-            "(*mean*: average of codes; *median*: middle value; *mode*: most frequent category — recommended for categorical data)."
+            "**Categorical imputation** — missing categorical values are completed using a selected statistical strategy before numerical encoding, thereby maintaining a consistent representation of categorical variables throughout the preprocessing pipeline."
         )
         cat_impute_strategy = st.selectbox(
             "Select categorical imputation method:",
@@ -478,11 +481,7 @@ try:
 
         # --- Numerical imputation ---
         st.markdown(
-            "**Numerical imputation method** — how to fill missing values in continuous columns. "
-            "*Mean/Median/Mode* use simple summary statistics. "
-            "*KNN* borrows values from the k most similar patients. "
-            "*Bayesian Ridge* fits a probabilistic regression model to predict missing values. "
-            "*MICE* (Multiple Imputation by Chained Equations) iteratively models each variable using all others — the most thorough option and the method used in the companion study (Study 2)."
+            "**Numerical imputation** — continuous variables may be imputed using summary-statistic or model-based approaches. The available methods include mean, median, mode, k-nearest neighbours, Bayesian Ridge regression, and Multiple Imputation by Chained Equations (MICE), enabling comparison of increasingly flexible strategies for handling incomplete data."
         )
         num_impute_strategy = st.selectbox(
             "Select numerical imputation method:",
@@ -491,8 +490,7 @@ try:
         )
         if num_impute_strategy == "knn":
             st.markdown(
-                "*KNN neighbours* — number of similar patients to draw from when estimating a missing value. "
-                "Higher values smooth the estimate; lower values stay closer to the nearest match."
+                "**Number of neighbours** — specifies the number of nearest observations used to estimate each missing value. Larger values generally produce smoother estimates, whereas smaller values retain greater local sensitivity."
             )
             knn_neighbors = st.slider("KNN neighbors (if KNN selected):", 1, 10, 5)
         else:
@@ -619,9 +617,7 @@ if st.session_state['df_imputed'] is not None:
     # Correlation heatmap
     st.subheader("Correlation Heatmap")
     st.markdown(
-        "A heatmap showing pairwise Pearson correlations between all variables. "
-        "Values close to **+1** indicate a strong positive relationship, close to **−1** a strong negative one, "
-        "and near **0** little linear association. Use this to spot multicollinearity and identify features related to the target."
+        "The correlation matrix summarises pairwise Pearson correlation coefficients across the study variables. This analysis supports identification of multicollinearity, strongly associated predictors, and variables with potential linear relationships to the target outcome."
     )
     correlation_fig = create_correlation_heatmap(df_imputed)
     st.plotly_chart(correlation_fig, use_container_width=True)
@@ -629,9 +625,7 @@ if st.session_state['df_imputed'] is not None:
     # Automatic feature selection
     st.subheader("Automatic Feature Selection")
     st.markdown(
-        "Features are selected by filtering on their absolute Pearson correlation with the target variable. "
-        "Set a **minimum** threshold to exclude near-zero (uninformative) correlations and a **maximum** threshold "
-        "to exclude features that might be data leakage (e.g. variables almost identical to the target)."
+        "Automatic feature selection is performed using the absolute Pearson correlation coefficient with respect to the target variable. User-defined lower and upper thresholds allow weakly associated predictors to be excluded while reducing the risk of retaining variables that may introduce information leakage."
     )
     st.write("Select the correlation range for feature selection:")
 
@@ -687,10 +681,7 @@ if st.session_state['df_imputed'] is not None:
 
         st.header("3. Pre-Training Feature Importance Analysis (SHAP)")
         st.markdown(
-            "**SHAP (SHapley Additive exPlanations)** quantifies how much each feature contributes to individual "
-            "predictions by fairly distributing the model output among features. "
-            "This *pre-training* analysis uses a lightweight baseline model on the imputed data to give an early "
-            "indication of which features are most informative *before* full model training."
+            "**SHAP (SHapley Additive exPlanations)** is used to quantify feature contributions to model predictions. This preliminary analysis applies a baseline model to the imputed data, providing an early assessment of predictor importance before full model training and evaluation."
         )
 
         if st.session_state.get('pre_training_shap_results'):
@@ -736,13 +727,7 @@ if st.session_state['df_imputed'] is not None:
         # Feature transformation
         st.subheader("Feature Transformation (Optional)")
         st.markdown(
-            "Apply a mathematical transformation to all selected features before training. "
-            "*Standard*: rescales to zero mean and unit variance (Z-score). "
-            "*MinMax*: rescales to the [0, 1] range. "
-            "*Robust*: uses median and interquartile range — less sensitive to outliers. "
-            "*Yeo-Johnson*: power transformation to approximate normality. "
-            "*Quantile*: maps values to a uniform or normal distribution. "
-            "Transformations can improve model convergence and reduce the influence of extreme values."
+            "Optional feature transformations are available to improve numerical stability, reduce sensitivity to outliers, and accommodate heterogeneous predictor distributions. Supported methods include standardisation, min-max scaling, robust scaling, Yeo-Johnson transformation, and quantile transformation."
         )
         transform_type = st.selectbox(
             "Select feature transformation:",
@@ -759,9 +744,7 @@ if st.session_state['df_imputed'] is not None:
         # Polynomial features
         st.subheader("Polynomial Features (Optional)")
         st.markdown(
-            "Generate higher-order or interaction terms from the selected features. "
-            "For example, if age and PSA are selected, degree-2 expansion adds age², PSA², and age×PSA. "
-            "*Interaction only* skips the squared terms and keeps only cross-products, which is often sufficient and less prone to overfitting."
+            "Polynomial expansion generates higher-order and interaction terms, enabling linear models to represent nonlinear relationships between predictors. Interaction-only expansion provides a more parsimonious alternative by retaining cross-product terms while excluding polynomial powers."
         )
         create_poly = st.checkbox("Create polynomial features", help="Generate polynomial and interaction features")
 
@@ -777,10 +760,7 @@ if st.session_state['df_imputed'] is not None:
         # Train-test split
         st.subheader("Train-Test Split Configuration")
         st.markdown(
-            "Partition the dataset into a **training set** (used to fit the model) and a **test set** "
-            "(held out to evaluate how well the model generalises to unseen data). "
-            "A typical split is 80 % training / 20 % test. "
-            "The random state ensures reproducibility — the same value will always produce the same split."
+            "The dataset is partitioned into independent training and testing subsets to estimate model generalisability. Stratified sampling is used for classification tasks to preserve class proportions across partitions, while the random seed ensures reproducibility of the split."
         )
         test_size = st.slider("Test set size:", 0.1, 0.5, 0.2, 0.05)
         random_state = st.number_input("Random state:", value=42, min_value=0)
@@ -804,11 +784,7 @@ if st.session_state['df_imputed'] is not None:
         # Model selection
         st.subheader("Model Selection and Training")
         st.markdown(
-            "Select the machine learning algorithm to train. "
-            "**Logistic Regression** models the log-odds of binary outcomes (csPCa yes/no) as a linear combination of features — "
-            "interpretable and well-suited to tabular clinical data, as used in Study 1 and Study 2. "
-            "**LASSO Regression** is a linear model with L1 regularisation that can shrink uninformative feature coefficients to zero, "
-            "performing implicit feature selection."
+            "The platform implements regularised Logistic Regression for binary classification and LASSO Regression for continuous outcomes. Logistic Regression provides an interpretable framework for estimating the probability of clinically significant prostate cancer, whereas LASSO applies L1 regularisation to support coefficient shrinkage and embedded feature selection."
         )
 
         if is_classification:
@@ -823,16 +799,13 @@ if st.session_state['df_imputed'] is not None:
         )
 
         st.markdown(
-            "**Cross-validation folds** — the training set is split into *k* equal folds; "
-            "the model is trained on *k−1* folds and validated on the remaining fold, rotating *k* times. "
-            "This gives a more reliable performance estimate than a single validation split."
+            "**Cross-validation folds** — internal validation is performed using k-fold cross-validation. The training data are iteratively partitioned into development and validation folds, providing a more stable estimate of model performance than a single validation split."
         )
         cv_folds = st.slider("Cross-validation folds:", 3, 10, 5)
 
         if selected_model == "LASSO Regression":
             st.markdown(
-                "**Alpha** is the regularisation strength. Larger values impose stronger shrinkage, "
-                "driving more coefficients to zero. *Auto-select* uses cross-validation to find the optimal alpha."
+                "**Alpha** controls the strength of L1 regularisation. Larger values impose greater coefficient shrinkage, while automatic selection identifies the value that optimises cross-validated model performance."
             )
             auto_alpha = st.checkbox("Auto-select alpha (recommended)", value=True)
             if not auto_alpha:
@@ -905,9 +878,7 @@ if st.session_state['df_imputed'] is not None:
 
                 if model_type == "logistic":
                     st.markdown(
-                        "**ROC Curve** — plots the True Positive Rate (sensitivity) against the False Positive Rate "
-                        "at every decision threshold. The **AUC** (Area Under the Curve) summarises discrimination: "
-                        "1.0 is perfect, 0.5 is no better than chance. The companion Study 2 achieved AUC = 0.85."
+                        "Receiver operating characteristic (ROC) analysis evaluates discriminatory performance across classification thresholds. The area under the ROC curve (AUC) summarises the model's ability to distinguish between clinically significant and non-significant prostate cancer independently of any single operating threshold."
                     )
                     try:
                         roc_fig = plot_roc_curve(model, X_test, y_test)
@@ -916,10 +887,7 @@ if st.session_state['df_imputed'] is not None:
                         st.error(f"Error plotting ROC curve: {str(e)}")
 
                     st.markdown(
-                        "**Confusion Matrix** — shows the counts of True Positives (correctly predicted csPCa), "
-                        "True Negatives (correctly predicted non-csPCa), False Positives (non-csPCa predicted as csPCa), "
-                        "and False Negatives (csPCa missed by the model). High False Positives were noted in Study 1 "
-                        "due to class imbalance even after SMOTE."
+                        "The confusion matrix summarises agreement between predicted and observed class labels, providing a direct overview of correctly classified cases and the distribution of false-positive and false-negative errors."
                     )
                     try:
                         from sklearn.preprocessing import StandardScaler
@@ -934,9 +902,7 @@ if st.session_state['df_imputed'] is not None:
 
                 else:
                     st.markdown(
-                        "**LASSO Regularisation Path** — shows how each feature's coefficient changes as the "
-                        "regularisation strength (alpha) increases. Features whose lines reach zero first are the "
-                        "least informative according to the model."
+                        "The LASSO regularisation path illustrates how model coefficients change as the regularisation parameter increases. It provides insight into the order and degree of coefficient shrinkage and the stability of predictor selection."
                     )
                     try:
                         reg_fig = plot_regularization_path(X_train, y_train)
@@ -947,9 +913,7 @@ if st.session_state['df_imputed'] is not None:
             with tab2:
                 st.subheader("SHAP Feature Importance Analysis")
                 st.markdown(
-                    "**Post-training SHAP** values are computed on the fitted model and test set, giving a detailed "
-                    "picture of which features drive predictions and in which direction. "
-                    "A higher mean |SHAP value| indicates a feature with greater overall impact on the model output."
+                    "Post-training SHAP analysis is applied to the fitted model and evaluation data to characterise the magnitude and direction of individual feature contributions. Mean absolute SHAP values are used to summarise each predictor's overall influence on model output."
                 )
 
                 try:
@@ -968,9 +932,7 @@ if st.session_state['df_imputed'] is not None:
             with tab3:
                 st.subheader("Predictive Parity Analysis")
                 st.markdown(
-                    "**Predictive parity** (also called *precision parity*) checks whether the model's positive "
-                    "predictive value is consistent across demographic subgroups. Disparities indicate that the model "
-                    "is less reliable for some groups than others. Mitigating age-related bias is a core goal of Study 1."
+                    "Predictive parity analysis evaluates whether positive predictive value is consistent across demographic subgroups. Systematic differences between groups may indicate differential model performance and potential algorithmic bias requiring further investigation."
                 )
 
                 if model_type == "logistic":
@@ -979,8 +941,7 @@ if st.session_state['df_imputed'] is not None:
                     if age_columns:
                         st.write("**Patient Age-Based Predictive Parity Analysis**")
                         st.markdown(
-                            "Select which column represents patient age. Patients will be grouped into age bands "
-                            "(Under 30 / 30–50 / 50–70 / Over 70) and model precision compared across groups."
+                            "Select the variable representing patient age. The analysis stratifies observations into predefined age bands and compares classification performance across groups."
                         )
                         selected_age_col = st.selectbox(
                             "Select age column for fairness analysis:",
@@ -1026,10 +987,7 @@ if st.session_state['df_imputed'] is not None:
                             if parity_results:
                                 st.write("**What this graph shows:**")
                                 st.info(
-                                    "This Predictive Parity Analysis compares precision (positive predictive value) "
-                                    "across patient age groups. Blue bars show model precision per group; "
-                                    "orange bars show the actual positive rate. "
-                                    "For a fair model, precision should be similar across all age groups."
+                                    "This analysis compares positive predictive value and observed outcome prevalence across age groups. Substantial between-group differences may indicate unequal reliability of positive predictions and should be interpreted alongside subgroup sample sizes and uncertainty."
                                 )
 
                                 st.write("**Predictive Parity Results:**")
@@ -1072,11 +1030,7 @@ if st.session_state['df_imputed'] is not None:
             with tab4:
                 st.subheader("Calibration Analysis")
                 st.markdown(
-                    "A **well-calibrated** model is one whose predicted probabilities match observed event rates — "
-                    "e.g. among all patients given a 70 % predicted risk, roughly 70 % should actually have csPCa. "
-                    "The **reliability diagram** (calibration curve) plots mean predicted probability against observed "
-                    "fraction of positives per bin. A diagonal line indicates perfect calibration. "
-                    "**Brier Score** measures overall probabilistic accuracy (lower is better; 0 = perfect, 1 = worst)."
+                    "Calibration analysis assesses agreement between predicted probabilities and observed event frequencies. Reliability diagrams characterise calibration across the risk range, while the Brier score quantifies overall probabilistic accuracy, with lower values indicating better performance."
                 )
 
                 if model_type == "logistic":
